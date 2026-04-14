@@ -124,4 +124,4 @@ personalens/
 
 ## 📜 License
 
-Personal use.
+MIT — see [LICENSE](LICENSE). Copyright © 2026 D-AI.
