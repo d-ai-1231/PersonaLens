@@ -9,20 +9,15 @@ Three ways to use it:
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Install in one line
+
+Copy and paste this into your terminal (or Claude Code):
 
 ```bash
-git clone https://github.com/d-ai-1231/PersonaLens.git
-cd PersonaLens
-./install.sh
+git clone https://github.com/d-ai-1231/PersonaLens.git && cd PersonaLens && ./install.sh
 ```
 
-The installer will:
-1. Check Python 3 is available
-2. Ask for your `GEMINI_API_KEY` and save it to `.env` ([get a free key here](https://aistudio.google.com/apikey))
-3. Install the Claude Code skill at `~/.claude/skills/review-service/`
-
-That's it. You're ready to use it.
+The installer will ask for your free [Gemini API key](https://aistudio.google.com/apikey) and set everything up. Done.
 
 ---
 
