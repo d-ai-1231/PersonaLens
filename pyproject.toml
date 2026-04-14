@@ -5,10 +5,27 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "personalens"
 version = "0.1.0"
-description = "Persona-based service quality review agent scaffold"
+description = "AI persona-based UX and quality review agent for any web service"
+readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "D-AI" }]
+keywords = ["ux", "ux-review", "persona", "gemini", "claude-code", "quality-review", "web"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Homepage = "https://github.com/d-ai-1231/PersonaLens"
+Repository = "https://github.com/d-ai-1231/PersonaLens"
+Issues = "https://github.com/d-ai-1231/PersonaLens/issues"
 
 [project.scripts]
 personalens = "personalens.cli:main"
