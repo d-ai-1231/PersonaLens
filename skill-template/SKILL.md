@@ -1,11 +1,11 @@
 ---
-name: review-service
+name: personalens
 description: Interactive persona-based UX/quality review for any web service. Asks the user about the service (URL, target persona, core journey, etc.), generates an AI persona for confirmation, then runs a detailed review and saves a markdown report. Triggers on "review this site", "UX review", "quality review", "리뷰해줘".
 ---
 
 # Service Quality Review
 
-Interactive persona-based quality review agent for web services. Runs the Quality Review Agent Python project to generate an AI persona, then performs a detailed review anchored to the user's business goals.
+Interactive persona-based quality review agent for web services. Runs the PersonaLens Python project to generate an AI persona, then performs a detailed review anchored to the user's business goals.
 
 ## When to use
 
@@ -17,7 +17,7 @@ Invoke this skill when the user wants to:
 
 ## Preconditions
 
-- The `Quality Review Agent` project must exist at `{{PROJECT_DIR}}`
+- The `PersonaLens` project must exist at `{{PROJECT_DIR}}`
 - `GEMINI_API_KEY` must be set in the project's `.env` file
 - Python 3 must be available
 - The user should be able to answer basic questions about their service (target user, business goal, etc.)
@@ -76,7 +76,7 @@ Run the persona generator:
 
 ```bash
 cd "$PROJECT_DIR" && set -a && source .env && set +a && \
-  PYTHONPATH=src python3 -m quality_review_agent.skill_helper persona "$FORM_JSON" > "$PERSONA_JSON"
+  PYTHONPATH=src python3 -m personalens.skill_helper persona "$FORM_JSON" > "$PERSONA_JSON"
 ```
 
 Read the generated persona from `$PERSONA_JSON` and present it to the user in a nicely formatted way (show name, JTBD, context, goals, pain points, success definition, decision style, voice anchors).
@@ -100,7 +100,7 @@ Once the user confirms the persona:
 ```bash
 OUTPUT_MD="$PWD/review-$(date +%Y%m%d-%H%M).md"
 cd "$PROJECT_DIR" && set -a && source .env && set +a && \
-  PYTHONPATH=src python3 -m quality_review_agent.skill_helper review \
+  PYTHONPATH=src python3 -m personalens.skill_helper review \
     "$FORM_JSON" "$PERSONA_JSON" "$OUTPUT_MD"
 ```
 
@@ -141,7 +141,7 @@ After the review completes:
 ## Example Invocation
 
 ```
-User: /review-service https://example.com
+User: /personalens https://example.com
 
 Claude: [asks questions one by one, collects answers]
 Claude: [generates persona, shows it]

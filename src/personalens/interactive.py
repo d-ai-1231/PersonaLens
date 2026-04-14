@@ -79,7 +79,7 @@ def _format_persona(persona: dict) -> str:
 
 def run_interactive(url: str = "", output_dir: Path | None = None, model: str = "gemini-2.5-pro") -> int:
     _print("\n╔" + "═" * 58 + "╗")
-    _print("║  🔍 Quality Review Agent — Interactive Review             ║")
+    _print("║  🔍 PersonaLens — Interactive Review             ║")
     _print("╚" + "═" * 58 + "╝\n")
 
     if not url:
@@ -173,7 +173,7 @@ def run_interactive(url: str = "", output_dir: Path | None = None, model: str = 
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    parser = argparse.ArgumentParser(prog="quality_review_agent interactive")
+    parser = argparse.ArgumentParser(prog="personalens interactive")
     parser.add_argument("url", nargs="?", default="", help="Service URL to review")
     parser.add_argument("--output-dir", type=Path, default=None, help="Directory for the markdown report (default: cwd)")
     parser.add_argument("--model", default="gemini-2.5-pro", help="Gemini model to use")

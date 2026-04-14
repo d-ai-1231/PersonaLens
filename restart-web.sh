@@ -9,7 +9,7 @@ if [[ -f ".env" ]]; then
   set +a
 fi
 
-pkill -f "python3 -m quality_review_agent serve" 2>/dev/null || true
+pkill -f "python3 -m personalens serve" 2>/dev/null || true
 sleep 1
 
 if [[ -z "${GEMINI_API_KEY:-}" ]]; then
@@ -18,4 +18,4 @@ if [[ -z "${GEMINI_API_KEY:-}" ]]; then
   exit 1
 fi
 
-PYTHONPATH=src python3 -m quality_review_agent serve
+PYTHONPATH=src python3 -m personalens serve

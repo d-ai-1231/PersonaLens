@@ -13,7 +13,7 @@ from .models import ValidationError
 from .service import create_brief_from_form, generate_persona_from_form, review_brief_to_json, run_review_for_brief
 
 
-APP_TITLE = "Quality Review Agent"
+APP_TITLE = "PersonaLens"
 AUTO_RECONNECT_SCRIPT = """
 <script>
 (() => {
@@ -171,7 +171,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
 def serve(host: str = "127.0.0.1", port: int = 8080) -> None:
     server = ThreadingHTTPServer((host, port), AppHandler)
-    print(f"Quality Review Agent running at http://{host}:{port}")
+    print(f"PersonaLens running at http://{host}:{port}")
     server.serve_forever()
 
 

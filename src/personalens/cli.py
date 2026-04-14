@@ -12,7 +12,7 @@ from .service import build_packet_for_brief, load_brief, run_review_for_brief
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="quality-review-agent")
+    parser = argparse.ArgumentParser(prog="personalens")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build_parser = subparsers.add_parser("build", help="Build a review packet from a brief JSON file")

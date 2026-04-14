@@ -1,12 +1,12 @@
 #!/bin/bash
-# Quality Review Agent — Installer
+# PersonaLens — Installer
 # Installs the Claude Code skill and sets up the .env file.
 
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_SRC="$PROJECT_DIR/skill-template/SKILL.md"
-SKILL_DEST_DIR="$HOME/.claude/skills/review-service"
+SKILL_DEST_DIR="$HOME/.claude/skills/personalens"
 SKILL_DEST="$SKILL_DEST_DIR/SKILL.md"
 ENV_FILE="$PROJECT_DIR/.env"
 
@@ -23,7 +23,7 @@ error() { printf "${RED}✗${NC}  %s\n" "$1" >&2; }
 
 printf "\n"
 printf "╔══════════════════════════════════════════════════════════╗\n"
-printf "║  🔍 Quality Review Agent — Installer                     ║\n"
+printf "║  🔍 PersonaLens — Installer                     ║\n"
 printf "╚══════════════════════════════════════════════════════════╝\n\n"
 
 info "Project directory: $PROJECT_DIR"
@@ -83,8 +83,8 @@ fi
 
 # Step 3: Validate Python modules can be imported
 info "Checking Python modules..."
-if ! (cd "$PROJECT_DIR" && PYTHONPATH=src python3 -c "from quality_review_agent.skill_helper import main" 2>/dev/null); then
-  error "Failed to import quality_review_agent module. Check the project structure."
+if ! (cd "$PROJECT_DIR" && PYTHONPATH=src python3 -c "from personalens.skill_helper import main" 2>/dev/null); then
+  error "Failed to import personalens module. Check the project structure."
   exit 1
 fi
 success "Python modules OK"
@@ -115,7 +115,7 @@ printf "  ${BLUE}2.${NC} Try the skill by asking:\n\n"
 printf "       ${GREEN}Review this site: https://example.com${NC}\n\n"
 printf "  ${BLUE}3.${NC} Or use the CLI directly:\n\n"
 printf "       ${GREEN}cd \"$PROJECT_DIR\"${NC}\n"
-printf "       ${GREEN}PYTHONPATH=src python3 -m quality_review_agent interactive https://example.com${NC}\n\n"
+printf "       ${GREEN}PYTHONPATH=src python3 -m personalens interactive https://example.com${NC}\n\n"
 printf "  ${BLUE}4.${NC} Or use the web UI:\n\n"
 printf "       ${GREEN}cd \"$PROJECT_DIR\" && ./start-web.sh${NC}\n"
 printf "       then open ${BLUE}http://127.0.0.1:8080${NC}\n\n"

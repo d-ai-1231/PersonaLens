@@ -1,4 +1,4 @@
-# 🔍 Quality Review Agent
+# 🔍 PersonaLens
 
 AI persona-based quality review tool for web services. Provide a few basic inputs and the agent will generate a specific target persona, evaluate your website from that perspective, and produce a detailed markdown report.
 
@@ -49,12 +49,12 @@ Includes a Korean/English toggle and the persona confirmation step.
 
 Interactive mode:
 ```bash
-PYTHONPATH=src python3 -m quality_review_agent interactive https://example.com
+PYTHONPATH=src python3 -m personalens interactive https://example.com
 ```
 
 Or JSON-driven automation:
 ```bash
-PYTHONPATH=src python3 -m quality_review_agent run \
+PYTHONPATH=src python3 -m personalens run \
   --input examples/brief.json \
   --output build/review-result.json
 ```
@@ -91,11 +91,11 @@ This is not a generic UX checklist:
 ## 📁 Project structure
 
 ```
-quality-review-agent/
+personalens/
 ├── install.sh                # One-command installer
 ├── skill-template/
 │   └── SKILL.md              # Claude Code skill template
-├── src/quality_review_agent/
+├── src/personalens/
 │   ├── agent.py              # Review packet builder
 │   ├── gemini.py             # Gemini API client + persona enrichment
 │   ├── service.py             # Two-step pipeline (persona → review)
@@ -111,7 +111,7 @@ quality-review-agent/
 
 **The skill doesn't appear in Claude Code:**
 - Fully restart Claude Code
-- Verify `~/.claude/skills/review-service/SKILL.md` exists
+- Verify `~/.claude/skills/personalens/SKILL.md` exists
 
 **Gemini API errors:**
 - Check that `.env` contains `GEMINI_API_KEY='...'` in the correct format

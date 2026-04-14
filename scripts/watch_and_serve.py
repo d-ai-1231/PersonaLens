@@ -17,7 +17,7 @@ WATCH_FILES = [
     ROOT / "review-output-schema.json",
     ROOT / "README.md",
 ]
-SERVER_CMD = ["python3", "-m", "quality_review_agent", "serve"]
+SERVER_CMD = ["python3", "-m", "personalens", "serve"]
 
 
 def iter_watched_files() -> list[Path]:

@@ -1,10 +1,10 @@
 """Helper script for Claude Code skill integration.
 
 Usage:
-  python -m quality_review_agent.skill_helper persona <form.json>
+  python -m personalens.skill_helper persona <form.json>
     → Outputs enriched persona JSON to stdout
 
-  python -m quality_review_agent.skill_helper review <form.json> <persona.json> <output.md>
+  python -m personalens.skill_helper review <form.json> <persona.json> <output.md>
     → Runs review with the confirmed persona, writes markdown to output.md
     → Prints summary JSON to stdout
 """

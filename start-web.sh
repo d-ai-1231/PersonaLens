@@ -15,4 +15,4 @@ if [[ -z "${GEMINI_API_KEY:-}" ]]; then
   exit 1
 fi
 
-PYTHONPATH=src python3 -m quality_review_agent serve
+PYTHONPATH=src python3 -m personalens serve
