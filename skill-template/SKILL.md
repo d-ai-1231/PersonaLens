@@ -26,19 +26,25 @@ Invoke this skill when the user wants to:
 
 ### Step 1: Collect inputs interactively
 
-Ask the user these questions **one at a time** in a natural conversation. Be friendly and efficient — don't dump all questions at once. Match the user's language (Korean or English). Some fields are optional.
+Ask the user these questions **one at a time** in a natural conversation. Be friendly and efficient. Match the user's language (Korean or English). Some fields are optional.
 
-Required:
-1. **Service URL** (if not already provided in the command)
-2. **Service name** (can suggest based on URL domain)
-3. **Service type** (e.g., "SaaS", "e-commerce", "landing page", "mobile app")
-4. **Most important user action** (core journey, e.g., "sign up and start onboarding")
-5. **Who is the main user?** (persona description, e.g., "developers looking to boost productivity")
+**IMPORTANT — Use AskUserQuestion when the answer fits a small set of options.** This gives the user clickable choices instead of typing. Use plain text questions only for open-ended answers (URL, names, descriptions).
 
-Optional (tell the user they can skip):
-6. **Business goal** (e.g., "increase onboarding completion rate")
-7. **Known user problems / VOC** — team-specific complaints if any
-8. **Competitors or alternatives** — only real competitors (prevents AI hallucinations)
+Question-by-question guide:
+
+1. **Service URL** — plain text (skip if already provided in the command)
+2. **Service name** — plain text (suggest based on URL domain as default)
+3. **Service type** — **use AskUserQuestion** with options:
+   - "SaaS / Web app"
+   - "E-commerce"
+   - "Landing / Marketing page"
+   - "Mobile app"
+   (Users can pick "Other" to type a custom value)
+4. **Most important user action** — plain text (core journey, e.g., "sign up and start onboarding")
+5. **Who is the main user?** — plain text (persona description, e.g., "developers looking to boost productivity")
+6. **Business goal** — plain text, **optional** (tell user they can skip)
+7. **Known user problems / VOC** — plain text, **optional** (only fill if there are team-specific complaints)
+8. **Competitors or alternatives** — plain text, **optional** (only real competitors — never let the AI guess)
 
 After collecting, save the answers to a temporary JSON file:
 
@@ -75,12 +81,17 @@ cd "$PROJECT_DIR" && set -a && source .env && set +a && \
 
 Read the generated persona from `$PERSONA_JSON` and present it to the user in a nicely formatted way (show name, JTBD, context, goals, pain points, success definition, decision style, voice anchors).
 
-Ask: **"Does this persona look right?"**
+**Use AskUserQuestion** to ask: "Does this persona look right?"
 
 Options:
-- **Yes** → proceed to Step 3
-- **Regenerate** → re-run the persona command and show again
-- **No / edit** → ask what to change, update `form.json`, re-run persona command
+- "Looks good — run review"
+- "Regenerate persona"
+- "Edit inputs and retry"
+
+Based on their choice:
+- **Looks good** → proceed to Step 3
+- **Regenerate** → re-run the persona command and show the new persona again
+- **Edit inputs** → ask what to change, update `form.json`, re-run persona generation
 
 ### Step 3: Run the review
 
@@ -104,8 +115,13 @@ The command outputs a JSON summary to stdout with:
 After the review completes:
 1. Tell the user the markdown file path: **"✅ Review report saved: `{path}`"**
 2. Briefly summarize: verdict, number of findings, overall confidence
-3. Ask if they want to open the file or see a specific section (strengths / findings / improvements)
-4. Clean up the temp directory: `rm -rf "$TMPDIR"`
+3. **Use AskUserQuestion** to ask: "What would you like to see first?"
+   - "Findings (prioritized issues)"
+   - "Improvements (suggestions)"
+   - "Strengths"
+   - "Open the full report file"
+4. Based on their choice, read the relevant section from the markdown file and paste it into chat (or open the file)
+5. Clean up the temp directory: `rm -rf "$TMPDIR"`
 
 ## Rules
 
