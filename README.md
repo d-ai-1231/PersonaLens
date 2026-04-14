@@ -12,8 +12,8 @@ Three ways to use it:
 ## 🚀 Quick Start
 
 ```bash
-git clone <repo-url>
-cd quality-review-agent
+git clone https://github.com/d-ai-1231/PersonaLens.git
+cd PersonaLens
 ./install.sh
 ```
 
