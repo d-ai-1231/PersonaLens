@@ -28,12 +28,39 @@ printf "╚═══════════════════════
 
 info "Project directory: $PROJECT_DIR"
 
-# Step 1: Check Python 3
+# Step 1: Check Python 3.11+
+print_python_install_help() {
+  printf "\n"
+  printf "   ${BLUE}How to install Python 3.11+:${NC}\n"
+  case "$(uname -s)" in
+    Darwin)
+      printf "     • Homebrew:  ${GREEN}brew install python@3.11${NC}\n"
+      printf "     • Installer: https://www.python.org/downloads/macos/\n"
+      ;;
+    Linux)
+      printf "     • Debian/Ubuntu: ${GREEN}sudo apt update && sudo apt install python3.11${NC}\n"
+      printf "     • Fedora:        ${GREEN}sudo dnf install python3.11${NC}\n"
+      printf "     • Arch:          ${GREEN}sudo pacman -S python${NC}\n"
+      printf "     • Other:         https://www.python.org/downloads/source/\n"
+      ;;
+    *)
+      printf "     • Download: https://www.python.org/downloads/\n"
+      ;;
+  esac
+  printf "\n"
+}
+
 if ! command -v python3 >/dev/null 2>&1; then
-  error "Python 3 not found. Please install Python 3 first."
+  error "Python 3 not found."
+  print_python_install_help
   exit 1
 fi
 PY_VERSION=$(python3 --version 2>&1)
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+  error "$PY_VERSION detected, but Python 3.11+ is required."
+  print_python_install_help
+  exit 1
+fi
 success "Found $PY_VERSION"
 
 # Step 2: Check/create .env with GEMINI_API_KEY

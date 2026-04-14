@@ -84,7 +84,7 @@ This is not a generic UX checklist:
 
 ## 🛠️ Requirements
 
-- Python 3.10+
+- Python 3.11+ — [macOS](https://www.python.org/downloads/macos/) · [Windows](https://www.python.org/downloads/windows/) · [Linux/source](https://www.python.org/downloads/source/) (or `brew install python@3.11` / `sudo apt install python3.11`)
 - Gemini API key (free tier works) — [get one here](https://aistudio.google.com/apikey)
 - Claude Code (only if using the skill mode)
 
