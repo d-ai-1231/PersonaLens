@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
     )
     run_parser.add_argument(
         "--model",
-        default="gemini-2.5-flash",
+        default="gemini-2.5-pro",
         help="Gemini model name",
     )
     run_parser.add_argument(
