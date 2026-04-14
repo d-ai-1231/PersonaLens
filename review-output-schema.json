@@ -1,0 +1,80 @@
+{
+  "review_summary": {
+    "verdict": "string",
+    "scope": "string",
+    "persona_name": "string",
+    "persona_segment": "string",
+    "confidence": "low|medium|high",
+    "first_impression": "string",
+    "why_it_matters": "string"
+  },
+  "persona_card": {
+    "job_to_be_done": "string",
+    "context": "string",
+    "goals": ["string"],
+    "pain_points": ["string"],
+    "technical_level": "low|medium|high",
+    "decision_style": "string",
+    "device_context": "mobile|desktop|mixed",
+    "access_needs": ["string"],
+    "voice_anchors": ["string"],
+    "evidence_sources": ["string"]
+  },
+  "scores": {
+    "task_clarity": { "score": 1, "reason": "string" },
+    "task_success": { "score": 1, "reason": "string" },
+    "effort_load": { "score": 1, "reason": "string" },
+    "trust_confidence": { "score": 1, "reason": "string" },
+    "value_communication": { "score": 1, "reason": "string" },
+    "error_recovery": { "score": 1, "reason": "string" },
+    "accessibility": { "score": 1, "reason": "string" },
+    "emotional_fit": { "score": 1, "reason": "string" }
+  },
+  "strengths": [
+    {
+      "title": "string",
+      "journey_stage": "string",
+      "persona_reason": "string",
+      "evidence": "string"
+    }
+  ],
+  "findings": [
+    {
+      "priority": "Blocker|High|Medium|Nit",
+      "title": "string",
+      "journey_stage": "string",
+      "problem": "string",
+      "persona_voice": "string",
+      "evidence": "string",
+      "impact_on_user": "string",
+      "impact_on_business": "string",
+      "improvement_direction": "string"
+    }
+  ],
+  "prioritized_improvements": {
+    "quick_wins": [
+      {
+        "change": "string",
+        "expected_user_outcome": "string",
+        "expected_business_outcome": "string",
+        "estimated_effort": "low|medium|high"
+      }
+    ],
+    "structural_fixes": [
+      {
+        "change": "string",
+        "expected_user_outcome": "string",
+        "expected_business_outcome": "string",
+        "estimated_effort": "low|medium|high"
+      }
+    ],
+    "validation_experiments": [
+      {
+        "experiment": "string",
+        "hypothesis": "string",
+        "success_metric": "string"
+      }
+    ]
+  },
+  "open_questions": ["string"]
+}

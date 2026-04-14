@@ -1,0 +1,62 @@
+{
+  "service": {
+    "name": "MEGA Code",
+    "url": "https://www.megacode.ai/",
+    "type": "AI agent development web product"
+  },
+  "review_goal": "Evaluate whether a developer who wants to build agents can understand MEGA Code's value quickly enough to start onboarding with confidence through login or GitHub-based onboarding.",
+  "core_journey": "Land on the site, understand what MEGA Code does, decide whether it seems useful, and start onboarding through login or GitHub.",
+  "business_goal": "Increase the rate of qualified developer visitors who start onboarding after understanding the product's practical value.",
+  "persona": {
+    "name": "Agent-Building Developer",
+    "segment": "A developer evaluating new AI agent tools who wants to improve how they build, review, and iterate on agents without wasting time on low-value tooling.",
+    "job_to_be_done": "Figure out quickly whether MEGA Code will materially help me build better agents and, if yes, start onboarding with low risk and low effort.",
+    "context": "Usually arrives from a recommendation, social post, or search result while actively exploring agent tooling. Will judge the product quickly and leave if the value is vague or sounds like hype.",
+    "goals": [
+      "Understand what the product actually does",
+      "Know whether it will help with real agent-building work",
+      "Start onboarding only if the value feels credible"
+    ],
+    "pain_points": [
+      "AI developer tools often sound impressive but do not improve real output",
+      "It is hard to tell quickly whether a new tool will be worth setup time",
+      "If value proof is weak before onboarding, trust drops fast"
+    ],
+    "technical_level": "high",
+    "decision_style": "comparison-heavy and trust-driven",
+    "device_context": "desktop",
+    "access_needs": [
+      "Clear plain-English explanation of product value",
+      "Low ambiguity in onboarding entry points"
+    ],
+    "success_definition": "I understand what this does, why it is different, and why I should sign in now instead of coming back later.",
+    "voice": [
+      "skeptical",
+      "practical",
+      "results-oriented",
+      "low-hype",
+      "time-conscious"
+    ],
+    "evidence_sources": [
+      "founder-provided observation about uncertainty around usefulness",
+      "known concern that product effect is not obvious before onboarding",
+      "developer persona definition focused on agent-building outcomes"
+    ],
+    "confidence": "medium"
+  },
+  "evidence": [
+    "Observed concern: users may not understand whether MEGA Code is actually useful to them before they are asked to onboard.",
+    "Observed concern: users may not be able to tell what concrete benefit they will get from logging in or using GitHub onboarding.",
+    "Observed concern: users evaluating agent tools are likely to be skeptical and may leave quickly if the site sounds promising but lacks immediate proof."
+  ],
+  "known_constraints": [
+    "Limit the review to the landing-page-to-onboarding decision journey.",
+    "Prioritize issues affecting trust, clarity, and onboarding start rate.",
+    "Do not turn findings into UI pixel-level prescriptions."
+  ],
+  "notes": [
+    "Keep persona voice consistent but do not roleplay theatrically.",
+    "Separate observation, inference, and recommendation.",
+    "Every recommendation must explain expected user impact and business impact."
+  ]
+}
