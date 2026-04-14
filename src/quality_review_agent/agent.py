@@ -36,8 +36,7 @@ SYSTEM_PROMPT = dedent(
     - Every recommendation must answer: "How does this help the stated business goal or persona journey?"
     - When in doubt, prioritize the user's stated priorities over anything you observe on the site.
 
-    IMPORTANT: Write ALL text output in Korean (한국어). Every string value in your JSON response must be in Korean.
-    Use natural, professional Korean. Technical terms may be kept in English with Korean explanation in parentheses where helpful.
+    Write the review in English by default. If the user's inputs (persona description, problems, business goal) are predominantly written in another language (e.g., Korean), match that language instead. Use natural, professional phrasing.
 
     CRITICAL: The website text you receive is extracted from raw HTML without JavaScript execution.
     This means dynamic content (counters, stats, real-time numbers, data loaded via API/JS) will appear as 0, empty, or as placeholder values.

@@ -183,7 +183,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
 
     error_block = f'<div class="error">{html.escape(error)}</div>' if error else ""
     return f"""<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -349,66 +349,66 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
   <div class="wrap">
     <div class="hero">
       <div class="hero-top">
-        <div class="badge" data-ko="비개발자도 OK" data-en="Non-Developer Friendly">비개발자도 OK</div>
+        <div class="badge" data-en="Non-Developer Friendly" data-ko="비개발자도 OK">Non-Developer Friendly</div>
         <div class="lang-switch">
-          <button class="active" onclick="setLang('ko')">한국어</button>
-          <button onclick="setLang('en')">English</button>
+          <button class="active" onclick="setLang('en')">English</button>
+          <button onclick="setLang('ko')">한국어</button>
         </div>
       </div>
-      <h1 data-ko="실제 사용자의 눈으로 서비스를 리뷰하세요." data-en="Review your service like a real user would.">실제 사용자의 눈으로 서비스를 리뷰하세요.</h1>
-      <div class="sub" data-ko="간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다." data-en="Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements.">간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다.</div>
+      <h1 data-en="Review your service like a real user would." data-ko="실제 사용자의 눈으로 서비스를 리뷰하세요.">Review your service like a real user would.</h1>
+      <div class="sub" data-en="Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements." data-ko="간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다.">Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements.</div>
     </div>
     <div class="grid">
       <form class="card" method="post" action="/review">
         {error_block}
-        <label for="service_name" data-ko="서비스 이름" data-en="Service name">서비스 이름</label>
+        <label for="service_name" data-en="Service name" data-ko="서비스 이름">Service name</label>
         <input id="service_name" name="service_name" value="{v('service_name')}" required>
 
-        <label for="service_url" data-ko="서비스 URL" data-en="Service URL">서비스 URL</label>
+        <label for="service_url" data-en="Service URL" data-ko="서비스 URL">Service URL</label>
         <input id="service_url" name="service_url" type="url" placeholder="https://example.com" value="{v('service_url')}" required>
 
-        <label for="service_type" data-ko="서비스 유형" data-en="Service type">서비스 유형</label>
-        <input id="service_type" name="service_type" data-placeholder-ko="웹앱, SaaS, 마켓플레이스..." data-placeholder-en="web app, SaaS, marketplace..." placeholder="웹앱, SaaS, 마켓플레이스..." value="{v('service_type', 'web product')}" required>
+        <label for="service_type" data-en="Service type" data-ko="서비스 유형">Service type</label>
+        <input id="service_type" name="service_type" data-placeholder-en="web app, SaaS, marketplace..." data-placeholder-ko="웹앱, SaaS, 마켓플레이스..." placeholder="web app, SaaS, marketplace..." value="{v('service_type', 'web product')}" required>
 
-        <label for="core_journey" data-ko="가장 중요한 사용자 행동" data-en="Most important user action">가장 중요한 사용자 행동</label>
+        <label for="core_journey" data-en="Most important user action" data-ko="가장 중요한 사용자 행동">Most important user action</label>
         <textarea id="core_journey" name="core_journey" required>{v('core_journey')}</textarea>
-        <div class="hint" data-ko="예: 회원가입 후 제품을 이해하고 GitHub을 통해 온보딩을 시작한다." data-en="Example: Sign up, understand the product, and start onboarding through GitHub.">예: 회원가입 후 제품을 이해하고 GitHub을 통해 온보딩을 시작한다.</div>
+        <div class="hint" data-en="Example: Sign up, understand the product, and start onboarding through GitHub." data-ko="예: 회원가입 후 제품을 이해하고 GitHub을 통해 온보딩을 시작한다.">Example: Sign up, understand the product, and start onboarding through GitHub.</div>
 
-        <label for="persona_description" data-ko="주요 사용자는 누구인가요?" data-en="Who is the main user?">주요 사용자는 누구인가요?</label>
+        <label for="persona_description" data-en="Who is the main user?" data-ko="주요 사용자는 누구인가요?">Who is the main user?</label>
         <textarea id="persona_description" name="persona_description" required>{v('persona_description')}</textarea>
-        <div class="hint" data-ko="실제 사람처럼 묘사해주세요. 예: 에이전트 도구를 평가하는 개발자. 가치가 모호하면 바로 떠남." data-en="Describe them like a real person. Example: A developer evaluating agent tools who leaves quickly if value feels vague.">실제 사람처럼 묘사해주세요. 예: 에이전트 도구를 평가하는 개발자. 가치가 모호하면 바로 떠남.</div>
+        <div class="hint" data-en="Describe them like a real person. Example: A developer evaluating agent tools who leaves quickly if value feels vague." data-ko="실제 사람처럼 묘사해주세요. 예: 에이전트 도구를 평가하는 개발자. 가치가 모호하면 바로 떠남.">Describe them like a real person. Example: A developer evaluating agent tools who leaves quickly if value feels vague.</div>
 
-        <label for="business_goal" data-ko="비즈니스 목표" data-en="Business goal">비즈니스 목표</label>
+        <label for="business_goal" data-en="Business goal" data-ko="비즈니스 목표">Business goal</label>
         <textarea id="business_goal" name="business_goal">{v('business_goal')}</textarea>
-        <div class="hint" data-ko="예: 랜딩 페이지 방문자의 온보딩 시작률을 높인다." data-en="Example: Increase onboarding start rate from landing page visitors.">예: 랜딩 페이지 방문자의 온보딩 시작률을 높인다.</div>
+        <div class="hint" data-en="Example: Increase onboarding start rate from landing page visitors." data-ko="예: 랜딩 페이지 방문자의 온보딩 시작률을 높인다.">Example: Increase onboarding start rate from landing page visitors.</div>
 
-        <label for="problems" data-ko="알려진 사용자 문제점 (선택)" data-en="Known user problems (optional)">알려진 사용자 문제점 (선택)</label>
+        <label for="problems" data-en="Known user problems (optional)" data-ko="알려진 사용자 문제점 (선택)">Known user problems (optional)</label>
         <textarea id="problems" name="problems">{v('problems')}</textarea>
-        <div class="hint" data-ko="팀만 아는 구체적 불만이나 VOC가 있다면 꼭 적어주세요. 없으면 비워두셔도 됩니다. 한 줄에 하나씩, 2~5개 권장. 예: 이게 유용한지 잘 모르겠다. 로그인하기 전에 망설인다." data-en="If you have team-specific complaints or VOC, please include them. Leave blank if unsure. One per line, 2–5 recommended. Example: Users are not sure if this is useful. People hesitate before logging in.">팀만 아는 구체적 불만이나 VOC가 있다면 꼭 적어주세요. 없으면 비워두셔도 됩니다. 한 줄에 하나씩, 2~5개 권장. 예: 이게 유용한지 잘 모르겠다. 로그인하기 전에 망설인다.</div>
+        <div class="hint" data-en="If you have team-specific complaints or VOC, please include them. Leave blank if unsure. One per line, 2–5 recommended. Example: Users are not sure if this is useful. People hesitate before logging in." data-ko="팀만 아는 구체적 불만이나 VOC가 있다면 꼭 적어주세요. 없으면 비워두셔도 됩니다. 한 줄에 하나씩, 2~5개 권장. 예: 이게 유용한지 잘 모르겠다. 로그인하기 전에 망설인다.">If you have team-specific complaints or VOC, please include them. Leave blank if unsure. One per line, 2–5 recommended. Example: Users are not sure if this is useful. People hesitate before logging in.</div>
 
-        <label for="competitors" data-ko="경쟁 제품 또는 대안 (선택)" data-en="Competitors or alternatives (optional)">경쟁 제품 또는 대안 (선택)</label>
+        <label for="competitors" data-en="Competitors or alternatives (optional)" data-ko="경쟁 제품 또는 대안 (선택)">Competitors or alternatives (optional)</label>
         <textarea id="competitors" name="competitors">{v('competitors')}</textarea>
-        <div class="hint" data-ko="실제 경쟁 제품이나 대안 도구를 쉼표로 구분해서 적어주세요. 비워두면 AI가 추측하지 않습니다. 예: Cursor, GitHub Copilot" data-en="Comma-separated list of real competitors or alternatives. Leave blank if unsure — the AI will not guess. Example: Cursor, GitHub Copilot">실제 경쟁 제품이나 대안 도구를 쉼표로 구분해서 적어주세요. 비워두면 AI가 추측하지 않습니다. 예: Cursor, GitHub Copilot</div>
+        <div class="hint" data-en="Comma-separated list of real competitors or alternatives. Leave blank if unsure — the AI will not guess. Example: Cursor, GitHub Copilot" data-ko="실제 경쟁 제품이나 대안 도구를 쉼표로 구분해서 적어주세요. 비워두면 AI가 추측하지 않습니다. 예: Cursor, GitHub Copilot">Comma-separated list of real competitors or alternatives. Leave blank if unsure — the AI will not guess. Example: Cursor, GitHub Copilot</div>
 
-        <label for="model" data-ko="Gemini 모델" data-en="Gemini model">Gemini 모델</label>
+        <label for="model" data-en="Gemini model" data-ko="Gemini 모델">Gemini model</label>
         <select id="model" name="model">
           <option value="gemini-2.5-pro" {"selected" if v('model', 'gemini-2.5-pro') == 'gemini-2.5-pro' else ""}>gemini-2.5-pro</option>
           <option value="gemini-2.5-flash" {"selected" if v('model') == 'gemini-2.5-flash' else ""}>gemini-2.5-flash</option>
         </select>
 
-        <button class="submit-btn" type="submit" data-ko="리뷰 실행" data-en="Run review">리뷰 실행</button>
+        <button class="submit-btn" type="submit" data-en="Run review" data-ko="리뷰 실행">Run review</button>
       </form>
       <div class="card tips">
-        <div class="badge" data-ko="결과 미리보기" data-en="What You Get">결과 미리보기</div>
-        <h2 data-ko="한 번의 리뷰, 세 가지 결과." data-en="One review, three outputs.">한 번의 리뷰, 세 가지 결과.</h2>
+        <div class="badge" data-en="What You Get" data-ko="결과 미리보기">What You Get</div>
+        <h2 data-en="One review, three outputs." data-ko="한 번의 리뷰, 세 가지 결과.">One review, three outputs.</h2>
         <ul>
-          <li data-ko="사용자 관점에서 무엇이 잘 되고 안 되는지 요약합니다." data-en="A user-perspective summary of what works and what does not.">사용자 관점에서 무엇이 잘 되고 안 되는지 요약합니다.</li>
-          <li data-ko="심각도와 비즈니스 영향을 기준으로 우선순위가 매겨진 발견 사항." data-en="Prioritized findings with severity and business impact.">심각도와 비즈니스 영향을 기준으로 우선순위가 매겨진 발견 사항.</li>
-          <li data-ko="빠른 개선, 구조적 수정, 검증 실험으로 그룹화된 개선 아이디어." data-en="Improvement ideas grouped into quick wins, bigger fixes, and experiments.">빠른 개선, 구조적 수정, 검증 실험으로 그룹화된 개선 아이디어.</li>
+          <li data-en="A user-perspective summary of what works and what does not." data-ko="사용자 관점에서 무엇이 잘 되고 안 되는지 요약합니다.">A user-perspective summary of what works and what does not.</li>
+          <li data-en="Prioritized findings with severity and business impact." data-ko="심각도와 비즈니스 영향을 기준으로 우선순위가 매겨진 발견 사항.">Prioritized findings with severity and business impact.</li>
+          <li data-en="Improvement ideas grouped into quick wins, bigger fixes, and experiments." data-ko="빠른 개선, 구조적 수정, 검증 실험으로 그룹화된 개선 아이디어.">Improvement ideas grouped into quick wins, bigger fixes, and experiments.</li>
         </ul>
         <ul>
-          <li data-ko="원본 파일은 <code>build/web</code> 폴더에 저장됩니다." data-en="The app also saves raw files under <code>build/web</code>.">원본 파일은 <code>build/web</code> 폴더에 저장됩니다.</li>
-          <li data-ko="근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다." data-en="If the model lacks enough evidence, it should say so instead of faking certainty.">근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다.</li>
+          <li data-en="The app also saves raw files under <code>build/web</code>." data-ko="원본 파일은 <code>build/web</code> 폴더에 저장됩니다.">The app also saves raw files under <code>build/web</code>.</li>
+          <li data-en="If the model lacks enough evidence, it should say so instead of faking certainty." data-ko="근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다.">If the model lacks enough evidence, it should say so instead of faking certainty.</li>
         </ul>
       </div>
     </div>
@@ -429,12 +429,12 @@ function setLang(lang) {{
 }}
 (function() {{
   const saved = localStorage.getItem('qra-lang');
-  if (saved && saved !== 'ko') setLang(saved);
+  if (saved && saved !== 'en') setLang(saved);
 }})();
 
 
 function showPersonaLoading() {{
-  const lang = document.documentElement.lang || 'ko';
+  const lang = document.documentElement.lang || 'en';
   const msg = lang === 'ko'
     ? '페르소나 생성 중 — 잠시만 기다려 주세요'
     : 'Generating persona — one moment';
@@ -468,7 +468,7 @@ function showPersonaLoading() {{
       document.write(html);
       document.close();
     }} catch (err) {{
-      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">요청 실패: ' + err.message + '</div>';
+      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">Request failed: ' + err.message + '</div>';
     }}
   }});
 }})();
@@ -489,16 +489,16 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
     def esc(value: str) -> str:
         return html.escape(value or "")
 
-    # Score labels in Korean
+    # Score labels in English
     score_labels = {
-        "task_clarity": "작업 명확성",
-        "task_success": "작업 완수도",
-        "effort_load": "노력 부담",
-        "trust_confidence": "신뢰 확신",
-        "value_communication": "가치 전달력",
-        "error_recovery": "오류 복구",
-        "accessibility": "접근성",
-        "emotional_fit": "감성 적합도",
+        "task_clarity": "Task clarity",
+        "task_success": "Task success",
+        "effort_load": "Effort load",
+        "trust_confidence": "Trust & confidence",
+        "value_communication": "Value communication",
+        "error_recovery": "Error recovery",
+        "accessibility": "Accessibility",
+        "emotional_fit": "Emotional fit",
     }
 
     # Priority colors
@@ -550,7 +550,7 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
                     f"<span class='cf-action'>{esc(item.get('improvement_direction', ''))}</span>"
                     f"</div>"
                 )
-        return "".join(blocks) or "<p class='empty'>항목 없음</p>"
+        return "".join(blocks) or "<p class='empty'>No items</p>"
 
     def render_compact_improvements() -> str:
         blocks = []
@@ -558,42 +558,42 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
         sf = improvements.get("structural_fixes") or []
         ve = improvements.get("validation_experiments") or []
         if qw:
-            blocks.append("<div class='imp-group'><h3>⚡ 빠른 개선</h3>")
+            blocks.append("<div class='imp-group'><h3>⚡ Quick wins</h3>")
             for item in qw:
                 effort = item.get("estimated_effort", "")
                 blocks.append(
                     f"<div class='imp'><strong>{esc(item.get('change', ''))}</strong>"
-                    f"<span class='imp-meta'>효과: {esc(item.get('expected_user_outcome', ''))} · 노력: {esc(effort)}</span></div>"
+                    f"<span class='imp-meta'>Outcome: {esc(item.get('expected_user_outcome', ''))} · Effort: {esc(effort)}</span></div>"
                 )
             blocks.append("</div>")
         if sf:
-            blocks.append("<div class='imp-group'><h3>🔧 구조적 개선</h3>")
+            blocks.append("<div class='imp-group'><h3>🔧 Structural fixes</h3>")
             for item in sf:
                 effort = item.get("estimated_effort", "")
                 blocks.append(
                     f"<div class='imp'><strong>{esc(item.get('change', ''))}</strong>"
-                    f"<span class='imp-meta'>효과: {esc(item.get('expected_user_outcome', ''))} · 노력: {esc(effort)}</span></div>"
+                    f"<span class='imp-meta'>Outcome: {esc(item.get('expected_user_outcome', ''))} · Effort: {esc(effort)}</span></div>"
                 )
             blocks.append("</div>")
         if ve:
-            blocks.append("<div class='imp-group'><h3>🧪 검증 실험</h3>")
+            blocks.append("<div class='imp-group'><h3>🧪 Validation experiments</h3>")
             for item in ve:
                 blocks.append(
                     f"<div class='imp'><strong>{esc(item.get('experiment', ''))}</strong>"
-                    f"<span class='imp-meta'>가설: {esc(item.get('hypothesis', ''))} · 지표: {esc(item.get('success_metric', ''))}</span></div>"
+                    f"<span class='imp-meta'>Hypothesis: {esc(item.get('hypothesis', ''))} · Metric: {esc(item.get('success_metric', ''))}</span></div>"
                 )
             blocks.append("</div>")
-        return "".join(blocks) or "<p class='empty'>개선 항목 없음</p>"
+        return "".join(blocks) or "<p class='empty'>No improvement items</p>"
 
     confidence = summary.get("confidence", "")
     conf_color = {"high": "#0e6b58", "medium": "#7a6c00", "low": "#a83131"}.get(confidence.lower(), "#6d645a")
 
     return f"""<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{esc(form.get('service_name', ''))} 리뷰 결과</title>
+  <title>{esc(form.get('service_name', ''))} — Review Result</title>
   <style>
     :root {{ --bg:#f7f3ec; --panel:#fffdf9; --ink:#1e1a16; --muted:#6d645a; --line:#d8cec0; --accent:#0e6b58; }}
     * {{ box-sizing:border-box; margin:0; }}
@@ -663,21 +663,21 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1>{esc(form.get('service_name', '서비스 리뷰'))}</h1>
+        <h1>{esc(form.get('service_name', 'Service Review'))}</h1>
         <div class="verdict">{esc(summary.get('verdict', ''))}</div>
-        <span class="conf" style="color:{conf_color};background:{conf_color}18">신뢰도: {esc(confidence)}</span>
+        <span class="conf" style="color:{conf_color};background:{conf_color}18">Confidence: {esc(confidence)}</span>
       </div>
-      <a class="btn" href="/">다시 리뷰하기</a>
+      <a class="btn" href="/">Run another review</a>
     </div>
 
     <div class="card">
       <div class="fi">
         <div class="fi-item">
-          <div class="fi-label">첫인상</div>
+          <div class="fi-label">First impression</div>
           {esc(summary.get('first_impression', ''))}
         </div>
         <div class="fi-item">
-          <div class="fi-label">왜 중요한가</div>
+          <div class="fi-label">Why it matters</div>
           {esc(summary.get('why_it_matters', ''))}
         </div>
       </div>
@@ -685,28 +685,28 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
 
     <div class="row row-2">
       <div class="card">
-        <h2>📊 평가 점수</h2>
+        <h2>📊 Scores</h2>
         {render_score_bar()}
       </div>
       <div>
         <div class="card">
-          <h2>✅ 강점</h2>
+          <h2>✅ Strengths</h2>
           {render_compact_findings(strengths, is_strength=True)}
         </div>
         <div class="card">
-          <h2>❓ 열린 질문</h2>
-          {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty'>없음</p>"}
+          <h2>❓ Open questions</h2>
+          {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty'>None</p>"}
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>🔍 발견 사항</h2>
+      <h2>🔍 Findings</h2>
       {render_compact_findings(findings, is_strength=False)}
     </div>
 
     <div class="card">
-      <h2>🚀 개선 제안</h2>
+      <h2>🚀 Improvements</h2>
       {render_compact_improvements()}
     </div>
   </div>
@@ -735,11 +735,11 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
     )
 
     return f"""<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{service_name} — 페르소나 확인</title>
+  <title>{service_name} — Persona Check</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css">
   <style>
     :root {{ --bg:#f7f3ec; --panel:#fffdf9; --ink:#1e1a16; --muted:#6d645a; --line:#d8cec0; --accent:#0e6b58; --warn:#9d4f1f; }}
@@ -775,8 +775,8 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
   <div class="wrap">
     <div class="hero">
       <div class="badge">Step 2 of 3 — Persona Check</div>
-      <h1>이 페르소나가 맞나요?</h1>
-      <p>AI가 입력하신 정보와 웹사이트 내용을 기반으로 구체적인 타겟 사용자를 만들었습니다. 확인하고 리뷰를 진행하거나 다시 생성할 수 있습니다.</p>
+      <h1>Does this persona look right?</h1>
+      <p>Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed.</p>
     </div>
 
     <div class="card">
@@ -789,33 +789,33 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
           <div class="val">{esc(persona.get('job_to_be_done', ''))}</div>
         </div>
         <div class="field">
-          <label>맥락 (Context)</label>
+          <label>Context</label>
           <div class="val">{esc(persona.get('context', ''))}</div>
         </div>
         <div class="field">
-          <label>목표 (Goals)</label>
+          <label>Goals</label>
           <ul>{list_items(persona.get('goals') or [])}</ul>
         </div>
         <div class="field">
-          <label>불편 (Pain points)</label>
+          <label>Pain points</label>
           <ul>{list_items(persona.get('pain_points') or [])}</ul>
         </div>
         <div class="field">
-          <label>성공 정의</label>
+          <label>Success definition</label>
           <div class="val">{esc(persona.get('success_definition', ''))}</div>
         </div>
         <div class="field">
-          <label>의사결정 스타일 / 기술 수준 / 기기</label>
+          <label>Decision style / Tech level / Device</label>
           <div class="val">{esc(persona.get('decision_style', ''))} · {esc(persona.get('technical_level', ''))} · {esc(persona.get('device_context', ''))}</div>
         </div>
         <div class="field" style="grid-column:1/-1">
-          <label>목소리 / 태도 (Voice anchors)</label>
+          <label>Voice anchors</label>
           <div class="chips">
             {''.join(f'<span class="chip">{esc(str(v))}</span>' for v in (persona.get('voice') or []))}
           </div>
         </div>
         <div class="field" style="grid-column:1/-1">
-          <label>접근성 요구사항</label>
+          <label>Accessibility needs</label>
           <ul>{list_items(persona.get('access_needs') or [])}</ul>
         </div>
       </div>
@@ -824,11 +824,11 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
         {hidden_fields}
         <input type="hidden" name="persona_json" value="{persona_json}">
         <div class="actions">
-          <button class="btn btn-primary" type="submit">👍 정확해요, 리뷰 실행</button>
-          <button class="btn btn-ghost" type="button" onclick="location.reload()">🔄 다시 생성</button>
-          <a class="btn btn-warn" href="/">✏️ 폼으로 돌아가기</a>
+          <button class="btn btn-primary" type="submit">👍 Looks good, run review</button>
+          <button class="btn btn-ghost" type="button" onclick="location.reload()">🔄 Regenerate</button>
+          <a class="btn btn-warn" href="/">✏️ Back to form</a>
         </div>
-        <div class="hint">리뷰 실행 후에는 생성에 최대 1분 정도 걸릴 수 있습니다.</div>
+        <div class="hint">The review may take up to a minute to generate.</div>
       </form>
     </div>
   </div>
@@ -855,7 +855,7 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
       document.write(html);
       document.close();
     }} catch (err) {{
-      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">요청 실패: ' + err.message + '</div>';
+      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">Request failed: ' + err.message + '</div>';
     }}
   }});
 }})();
@@ -1081,7 +1081,7 @@ body { animation: skel-fade-in .25s ease; }
 document.addEventListener('DOMContentLoaded', () => {
   const wrap = document.querySelector('.wrap');
   if (wrap) {
-    const lang = document.documentElement.lang || 'ko';
+    const lang = document.documentElement.lang || 'en';
     const msg = lang === 'ko'
       ? '리뷰 생성 중 — 최대 1분 정도 걸릴 수 있습니다'
       : 'Generating review — this may take up to a minute';

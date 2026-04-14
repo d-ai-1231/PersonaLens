@@ -85,7 +85,7 @@ printf "╚═══════════════════════
 printf "Next steps:\n\n"
 printf "  ${BLUE}1.${NC} Restart Claude Code (if it's already running)\n"
 printf "  ${BLUE}2.${NC} Try the skill by asking:\n\n"
-printf "       ${GREEN}리뷰해줘 https://example.com${NC}\n\n"
+printf "       ${GREEN}Review this site: https://example.com${NC}\n\n"
 printf "  ${BLUE}3.${NC} Or use the CLI directly:\n\n"
 printf "       ${GREEN}cd \"$PROJECT_DIR\"${NC}\n"
 printf "       ${GREEN}PYTHONPATH=src python3 -m quality_review_agent interactive https://example.com${NC}\n\n"

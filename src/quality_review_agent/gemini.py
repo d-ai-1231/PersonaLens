@@ -276,8 +276,8 @@ Do NOT use generic placeholders. Be specific to THIS service and THIS user type.
 
 Return JSON matching this exact structure:
 {{
-  "name": "A realistic Korean name or role-based name (e.g., '김서연 — 스타트업 PM')",
-  "segment": "Specific user segment description in Korean",
+  "name": "A realistic name or role-based name (e.g., 'Sarah Kim — Startup PM')",
+  "segment": "Specific user segment description",
   "job_to_be_done": "What they are trying to accomplish, specific to this service",
   "context": "When/why/how they arrive at this service — be specific, referencing real usage patterns found in research",
   "goals": ["goal1", "goal2", "goal3"],
@@ -294,7 +294,7 @@ Return JSON matching this exact structure:
 }}
 
 IMPORTANT:
-- Write ALL values in Korean.
+- Write values in English by default. If the user's inputs are predominantly in another language (e.g., Korean), match that language instead.
 - Be specific to this service, not generic UX personas.
 - voice anchors should reflect this person's communication style and emotional state.
 - confidence should reflect how much evidence you have (higher if web research found strong signals).

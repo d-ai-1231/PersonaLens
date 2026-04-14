@@ -1,6 +1,6 @@
 ---
 name: review-service
-description: Interactive persona-based UX/quality review for any web service. Asks the user about the service (URL, target persona, core journey, etc.), generates an AI persona for confirmation, then runs a detailed review and saves a Korean markdown report. Triggers on "리뷰해줘", "review this site", "UX 리뷰", "품질 리뷰".
+description: Interactive persona-based UX/quality review for any web service. Asks the user about the service (URL, target persona, core journey, etc.), generates an AI persona for confirmation, then runs a detailed review and saves a markdown report. Triggers on "review this site", "UX review", "quality review", "리뷰해줘".
 ---
 
 # Service Quality Review
@@ -13,7 +13,7 @@ Invoke this skill when the user wants to:
 - Review a website's UX, clarity, trust signals, and onboarding flow
 - Get a persona-based quality assessment of their service
 - Evaluate landing-to-onboarding conversion path
-- Produce a Korean markdown report of findings and improvements
+- Produce a markdown report of findings and improvements
 
 ## Preconditions
 
@@ -26,19 +26,19 @@ Invoke this skill when the user wants to:
 
 ### Step 1: Collect inputs interactively
 
-Ask the user these questions **one at a time** in a natural conversation. Be friendly and efficient — don't dump all questions at once. Some fields are optional (mark them as "선택" when asking).
+Ask the user these questions **one at a time** in a natural conversation. Be friendly and efficient — don't dump all questions at once. Match the user's language (Korean or English). Some fields are optional.
 
 Required:
-1. **서비스 URL** (if not already provided in the command)
-2. **서비스 이름** (can suggest based on URL domain)
-3. **서비스 유형** (e.g., "SaaS", "커머스", "랜딩페이지", "모바일 앱")
-4. **가장 중요한 사용자 행동** (핵심 여정, e.g., "회원가입 후 온보딩 시작")
-5. **주요 사용자는 누구인가요?** (페르소나 설명, e.g., "생산성 높이려는 개발자")
+1. **Service URL** (if not already provided in the command)
+2. **Service name** (can suggest based on URL domain)
+3. **Service type** (e.g., "SaaS", "e-commerce", "landing page", "mobile app")
+4. **Most important user action** (core journey, e.g., "sign up and start onboarding")
+5. **Who is the main user?** (persona description, e.g., "developers looking to boost productivity")
 
-Optional (tell user they can skip):
-6. **비즈니스 목표** (e.g., "온보딩 완료율 향상")
-7. **알려진 사용자 문제 / VOC** — 팀만 아는 구체적 불만이 있다면
-8. **경쟁 제품 또는 대안 도구** — 실제 경쟁사만 입력 (AI가 추측하지 않도록)
+Optional (tell the user they can skip):
+6. **Business goal** (e.g., "increase onboarding completion rate")
+7. **Known user problems / VOC** — team-specific complaints if any
+8. **Competitors or alternatives** — only real competitors (prevents AI hallucinations)
 
 After collecting, save the answers to a temporary JSON file:
 
@@ -75,12 +75,12 @@ cd "$PROJECT_DIR" && set -a && source .env && set +a && \
 
 Read the generated persona from `$PERSONA_JSON` and present it to the user in a nicely formatted way (show name, JTBD, context, goals, pain points, success definition, decision style, voice anchors).
 
-Ask: **"이 페르소나로 리뷰를 진행할까요?"**
+Ask: **"Does this persona look right?"**
 
 Options:
-- **예** → proceed to Step 3
-- **다시 생성** → re-run the persona command and show again
-- **아니오 / 수정** → ask what to change, update `form.json`, re-run persona command
+- **Yes** → proceed to Step 3
+- **Regenerate** → re-run the persona command and show again
+- **No / edit** → ask what to change, update `form.json`, re-run persona command
 
 ### Step 3: Run the review
 
@@ -93,7 +93,7 @@ cd "$PROJECT_DIR" && set -a && source .env && set +a && \
     "$FORM_JSON" "$PERSONA_JSON" "$OUTPUT_MD"
 ```
 
-This will take 30–60 seconds. Tell the user it's running and what it's doing ("웹사이트 크롤링 → 페르소나 기반 분석 → 개선안 생성").
+This will take 30–60 seconds. Tell the user it's running and what it's doing ("crawling the website → persona-based analysis → generating improvements").
 
 The command outputs a JSON summary to stdout with:
 - `markdown_path`: absolute path to the saved report
@@ -102,16 +102,16 @@ The command outputs a JSON summary to stdout with:
 ### Step 4: Present results
 
 After the review completes:
-1. Tell the user the markdown file path: **"✅ 리뷰 리포트가 저장되었습니다: `{path}`"**
+1. Tell the user the markdown file path: **"✅ Review report saved: `{path}`"**
 2. Briefly summarize: verdict, number of findings, overall confidence
-3. Ask if they want to open the file or see a specific section (강점 / 발견 사항 / 개선 제안)
+3. Ask if they want to open the file or see a specific section (strengths / findings / improvements)
 4. Clean up the temp directory: `rm -rf "$TMPDIR"`
 
 ## Rules
 
 ### Always
 - **Collect answers one at a time** — conversational, not a form dump
-- **Use Korean for the conversation and final report** — matches user preference
+- **Match the user's language** — if they write in Korean, respond in Korean; otherwise English
 - **Ask permission to proceed** after showing the persona — never skip validation
 - **Save the markdown report in the current working directory** — so the user can easily find it
 - **Use gemini-2.5-pro** — quality is prioritized for reviews
@@ -125,20 +125,20 @@ After the review completes:
 ## Example Invocation
 
 ```
-User: /review-service https://megacode.ai
+User: /review-service https://example.com
 
 Claude: [asks questions one by one, collects answers]
 Claude: [generates persona, shows it]
-Claude: 이 페르소나가 맞나요?
-User: 네
+Claude: Does this persona look right?
+User: Yes
 
 Claude: [runs review, ~45 seconds]
-Claude: ✅ 완료! 리뷰 리포트: review-megacode-20260414-1530.md
+Claude: ✅ Done! Report: review-example-20260414-1530.md
 
-판정: 가치 제안은 명확하나 전환 경로에 마찰이 있음
-신뢰도: medium
-발견 사항: 7개 (Blocker 1, High 2, Medium 3, Nit 1)
-강점: 3개
+Verdict: Value proposition is clear but conversion path has friction
+Confidence: medium
+Findings: 7 (1 Blocker, 2 High, 3 Medium, 1 Nit)
+Strengths: 3
 
-어떤 섹션부터 보시겠어요?
+Which section would you like to see first?
 ```
