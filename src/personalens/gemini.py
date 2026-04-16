@@ -17,6 +17,7 @@ class GeminiConfig:
     model: str = "gemini-2.5-pro"
     api_key_env: str = "GEMINI_API_KEY"
     endpoint_base: str = "https://generativelanguage.googleapis.com/v1beta"
+    timeout_seconds: int = 45
 
 
 def run_review(
@@ -90,7 +91,7 @@ def _make_request(config: GeminiConfig, api_key: str, request_body: dict) -> dic
     )
 
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=config.timeout_seconds) as response:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")

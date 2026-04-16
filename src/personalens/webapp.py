@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .diagnostics import format_gemini_error, format_unexpected_error, format_validation_issues
 from .gemini import GeminiError
 from .models import ValidationError
 from .service import create_brief_from_form, generate_persona_from_form, review_brief_to_json, run_review_for_brief
@@ -99,10 +100,10 @@ class AppHandler(BaseHTTPRequestHandler):
         try:
             persona_dict = generate_persona_from_form(form, model=form.get("model", "gemini-2.5-pro"))
         except GeminiError as exc:
-            self._send_html(render_form(error=f"Gemini request failed: {exc}", values=form), status=HTTPStatus.BAD_GATEWAY)
+            self._send_html(render_form(error=format_gemini_error(str(exc)), values=form), status=HTTPStatus.BAD_GATEWAY)
             return
         except Exception as exc:  # pragma: no cover
-            self._send_html(render_form(error=f"Unexpected error: {exc}", values=form), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._send_html(render_form(error=format_unexpected_error(str(exc), "generating persona"), values=form), status=HTTPStatus.INTERNAL_SERVER_ERROR)
             return
         self._send_html(render_persona_card(form, persona_dict))
 
@@ -135,16 +136,16 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_html(render_form(error=f"Missing field: {exc.args[0]}", values=form), status=HTTPStatus.BAD_REQUEST)
             return
         except ValidationError as exc:
-            self._send_html(render_form(error=" / ".join(exc.issues), values=form), status=HTTPStatus.BAD_REQUEST)
+            self._send_html(render_form(error=format_validation_issues(exc.issues), values=form), status=HTTPStatus.BAD_REQUEST)
             return
         except GeminiError as exc:
-            self._send_html(render_form(error=f"Gemini request failed: {exc}", values=form), status=HTTPStatus.BAD_GATEWAY)
+            self._send_html(render_form(error=format_gemini_error(str(exc)), values=form), status=HTTPStatus.BAD_GATEWAY)
             return
         except Exception as exc:  # pragma: no cover
             build_dir = Path("build/web")
             build_dir.mkdir(parents=True, exist_ok=True)
             (build_dir / "last-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
-            self._send_html(render_form(error=f"Unexpected error: {exc}", values=form), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._send_html(render_form(error=format_unexpected_error(str(exc), "running review"), values=form), status=HTTPStatus.INTERNAL_SERVER_ERROR)
             return
 
         self._send_html(render_result(form, brief, result))

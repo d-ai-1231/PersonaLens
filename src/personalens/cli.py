@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from .agent import load_schema
+from .diagnostics import format_gemini_error, format_unexpected_error, format_validation_issues
 from .gemini import GeminiError
 from .models import ValidationError
 from .service import build_packet_for_brief, load_brief, run_review_for_brief
+from .slack_server import serve_slack_commands
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,6 +61,29 @@ def parse_args() -> argparse.Namespace:
         help="Path to write the raw Gemini API response",
     )
 
+    slack_parser = subparsers.add_parser("slack-serve", help="Run a Slack slash-command bridge server")
+    slack_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind the Slack bridge server",
+    )
+    slack_parser.add_argument(
+        "--port",
+        type=int,
+        default=8787,
+        help="Port to bind the Slack bridge server",
+    )
+    slack_parser.add_argument(
+        "--signing-secret-env",
+        default="SLACK_SIGNING_SECRET",
+        help="Environment variable containing the Slack signing secret",
+    )
+    slack_parser.add_argument(
+        "--default-model",
+        default="gemini-2.5-pro",
+        help="Default Gemini model for Slack-triggered reviews",
+    )
+
     return parser.parse_args()
 
 
@@ -67,6 +93,18 @@ def main() -> int:
         return run_build(args)
     if args.command == "run":
         return run_gemini(args)
+    if args.command == "slack-serve":
+        signing_secret = os.getenv(args.signing_secret_env, "").strip()
+        if not signing_secret:
+            print(f"{args.signing_secret_env} is not set", file=sys.stderr)
+            return 1
+        serve_slack_commands(
+            host=args.host,
+            port=args.port,
+            signing_secret=signing_secret,
+            default_model=args.default_model,
+        )
+        return 0
     return 1
 
 
@@ -90,9 +128,7 @@ def run_build(args: argparse.Namespace) -> int:
         print(f"Invalid JSON: {exc}", file=sys.stderr)
         return 1
     except ValidationError as exc:
-        print("Input validation failed:", file=sys.stderr)
-        for issue in exc.issues:
-            print(f"- {issue}", file=sys.stderr)
+        print(format_validation_issues(exc.issues), file=sys.stderr)
         return 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,9 +162,7 @@ def run_gemini(args: argparse.Namespace) -> int:
         print(f"Invalid JSON: {exc}", file=sys.stderr)
         return 1
     except ValidationError as exc:
-        print("Input validation failed:", file=sys.stderr)
-        for issue in exc.issues:
-            print(f"- {issue}", file=sys.stderr)
+        print(format_validation_issues(exc.issues), file=sys.stderr)
         return 1
 
     try:
@@ -142,7 +176,7 @@ def run_gemini(args: argparse.Namespace) -> int:
             raw_output=raw_output,
         )
     except GeminiError as exc:
-        print(f"Gemini request failed: {exc}", file=sys.stderr)
+        print(format_gemini_error(str(exc)), file=sys.stderr)
         return 1
 
     print(f"Wrote prompt packet: {packet_output}")

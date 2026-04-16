@@ -5,7 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .agent import build_review_packet, load_schema
-from .gemini import GeminiConfig, enrich_persona, run_review
+from .gemini import GeminiConfig, GeminiError, enrich_persona, run_review
 from .models import Persona, ReviewBrief, Service
 from .webpage import fetch_webpage_context
 
@@ -115,7 +115,7 @@ def generate_persona_from_form(data: dict[str, str], model: str = "gemini-2.5-pr
             "evidence_sources": enriched.get("evidence_sources", ["user description", "website snapshot"])[:3],
             "confidence": enriched.get("confidence", "medium"),
         }
-    except Exception:
+    except (GeminiError, json.JSONDecodeError, OSError, ValueError, TypeError):
         persona_dict = {
             "name": "Target User",
             "segment": basics["persona_description"],

@@ -59,6 +59,15 @@ PYTHONPATH=src python3 -m personalens run \
   --output build/review-result.json
 ```
 
+## 💬 Option 4: Slack bridge
+
+Run a local Slack slash-command bridge:
+```bash
+SLACK_SIGNING_SECRET=... PYTHONPATH=src python3 -m personalens slack-serve --host 127.0.0.1 --port 8787
+```
+
+The bridge accepts `/review <url> | <service name> | <service type> | <journey> | <persona> | <goal> | <problems> | <competitors>` and replies back to Slack with a concise review summary.
+
 ---
 
 ## 📋 What the report contains
@@ -99,6 +108,8 @@ personalens/
 │   ├── agent.py              # Review packet builder
 │   ├── gemini.py             # Gemini API client + persona enrichment
 │   ├── service.py             # Two-step pipeline (persona → review)
+│   ├── slack_bridge.py       # Slack command parsing + signature verification
+│   ├── slack_server.py       # Local Slack slash-command bridge server
 │   ├── webapp.py             # Web UI
 │   ├── interactive.py        # Terminal interactive CLI
 │   ├── skill_helper.py       # JSON-based helper for the Claude Code skill

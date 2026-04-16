@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .diagnostics import format_gemini_error, format_unexpected_error
 from .markdown_report import render_markdown_report
 from .service import create_brief_from_form, generate_persona_from_form, run_review_for_brief
 
@@ -119,7 +120,7 @@ def run_interactive(url: str = "", output_dir: Path | None = None, model: str = 
     try:
         persona = generate_persona_from_form(form, model=model)
     except Exception as exc:
-        _print(f"\n❌ Persona generation failed: {exc}")
+        _print(f"\n❌ {format_unexpected_error(str(exc), 'generating persona')}")
         return 2
 
     while True:
@@ -131,7 +132,7 @@ def run_interactive(url: str = "", output_dir: Path | None = None, model: str = 
             try:
                 persona = generate_persona_from_form(form, model=model)
             except Exception as exc:
-                _print(f"\n❌ Regeneration failed: {exc}")
+                _print(f"\n❌ {format_unexpected_error(str(exc), 'regenerating persona')}")
                 return 2
         else:
             _print("\nAborted.")
@@ -152,8 +153,11 @@ def run_interactive(url: str = "", output_dir: Path | None = None, model: str = 
             result_output=build_dir / "review-result.json",
             raw_output=build_dir / "gemini-raw-response.json",
         )
+    except GeminiError as exc:
+        _print(f"\n❌ {format_gemini_error(str(exc))}")
+        return 3
     except Exception as exc:
-        _print(f"\n❌ Review failed: {exc}")
+        _print(f"\n❌ {format_unexpected_error(str(exc), 'running review')}")
         return 3
 
     # Step 3: Save markdown report
