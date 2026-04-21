@@ -304,3 +304,64 @@ Accessibility moves 3.0 → 4.0 because: landmarks (SC 1.3.1), aria-pressed on t
 2. **Regenerate POST fix** — single change moves form_ux_flow 3.5→4.0+.
 3. **visibilitychange + role=status on banner** — single change moves loading_feedback 3.5→4.0+ and completes the aria-live story in accessibility.
 4. If bandwidth allows: confidence pill contrast + `*` required indicators + aria-busy on submit.
+
+---
+
+## Iteration 4 Observations (2026-04-20)
+
+**Diff scope this iter:** src/personalens/webapp.py Regenerate handler + webpage.py (LRU cache, out-of-scope) + review-output-schema.json (key-order churn, out-of-scope).
+
+**Changes landed (verified via Read + Grep):**
+- File grew 1132 → 1164 lines (+32 net).
+- **render_persona_card L839:** `<button ... onclick="location.reload()">🔄 Regenerate</button>` → `<button ... id="regenerate-btn">🔄 Regenerate</button>`. Inline onclick removed, id added for event delegation.
+- **render_persona_card L873-L903 (new):** addEventListener handler that:
+  - Re-entrancy guard via `aria-disabled` check
+  - Sets `aria-disabled="true"` + `disabled=true` + `textContent='⏳ Regenerating…'` before request
+  - Builds URLSearchParams from FormData, explicitly filtering out `persona_json`
+  - POSTs to `/persona` with `Content-Type: application/x-www-form-urlencoded`
+  - `document.open/write/close` swap on success
+  - Error path re-enables button, restores '🔄 Regenerate' label, surfaces via `alert()`
+- Grep confirms: `location.reload()` → 1 match (only L49 in poller, was 2); `regenerate-btn` → 4 matches; `aria-disabled` → 2 matches (was 0 in iter 3).
+
+**Changes NOT landed (still carry-forward):**
+- `visibilitychange` → still 0 matches. AUTO_RECONNECT_SCRIPT at L18-66 untouched.
+- `<html lang="en">` → still 3 matches (L187 form is expected, L600 result + L749 persona are SC 3.1.1 fails).
+- `data-ko` → still 26 matches, ALL in render_form (L353-L412). render_persona_card and render_result remain monolingual EN. The new Regenerate strings '⏳ Regenerating…' (L879) and 'Regenerate failed:' (L900) are also English-only — mini-regression that bilingual propagation must also sweep.
+- `role="alert"` → 1, `aria-live` → 2, `aria-pressed` → 2 (unchanged). Polling banner still no role='status'.
+- Required `*` indicator → 0. `aria-busy` → 0. Confidence pill alpha-bg at L676 unchanged. Emoji without aria-hidden at L705/710/714/721/726.
+
+### Scores (iteration 4)
+
+| Criterion | v0 | v1 | v2 | v3 | v4 | Δ(v3→v4) | Weight |
+|---|---|---|---|---|---|---|---|
+| form_ux_flow | 3.5 | 3.5 | 3.5 | 3.5 | **4.0** | **+0.5** | 0.22 |
+| loading_feedback | 3.0 | 3.0 | 3.5 | 3.5 | 3.5 | 0 | 0.18 |
+| visual_language | 4.0 | 4.0 | 4.0 | 4.0 | 4.0 | 0 | 0.15 |
+| responsive_layout | 3.5 | 3.5 | 3.5 | 3.5 | 3.5 | 0 | 0.12 |
+| accessibility | 3.0 | 3.0 | 3.0 | 4.0 | 4.0 | 0 | 0.18 |
+| i18n_bilingual | 2.5 | 2.5 | 2.5 | 2.5 | 2.5 | 0 | 0.08 |
+| frontend_code_quality | 3.5 | 3.5 | 3.5 | 3.5 | 3.5 | 0 | 0.07 |
+| **Aggregate** | 3.315 | 3.315 | 3.405 | 3.525 | **3.695** | **+0.170** | 1.00 |
+
+Computation: 4.0×0.22 + 3.5×0.18 + 4.0×0.15 + 3.5×0.12 + 4.0×0.18 + 2.5×0.08 + 3.5×0.07 = 0.880 + 0.630 + 0.600 + 0.420 + 0.720 + 0.200 + 0.245 = **3.695**.
+
+form_ux_flow moves 3.5 → 4.0 because the Regenerate button is now functional with proper in-flight state management (aria-disabled + disabled + label change + re-entrancy guard + error recovery) — closes the Nielsen #1/#4 finding that has been flagged since iter 0. Does NOT move to 4.5 because required-field `*` indicator is still absent, primary submit button doesn't set aria-busy/disabled before showPersonaLoading overlay, and lang-switch buttons still carry inline onclick= inconsistent with the new addEventListener pattern.
+
+No other criterion moved. Accessibility stays at 4.0 — the Regenerate handler's aria-disabled is good NRV signaling but the bulk of the gap (lang attr, polling banner aria-live, emoji aria-hidden, confidence contrast) remains.
+
+### Target trajectory analysis (post-iter-4)
+
+- Baseline: 3.315. Target: 4.2. After iter 4: 3.695. Remaining gap: **+0.505**.
+- Budget: **1 iteration left** (iter 5).
+- To close +0.505 in a single iter, iter 5 must bundle ALL THREE of: (a) bilingual propagation [+0.12 i18n, +~0.09 accessibility weighted], (b) visibilitychange + role=status on polling [+0.09 loading_feedback weighted], (c) required-field `*` + aria-busy submit + remove lang-switch onclick= [+0.11 form_ux_flow + small frontend_quality lift weighted]. That math gives ~+0.41 weighted — close but not sufficient alone.
+- To realistically hit 4.2 would also need confidence pill contrast fix (visual_language +0.08) AND rem-font-size (visual_language). Pace remains a delivery risk.
+- Verdict: iter 5 must be a bundled multi-item commit to have a chance. A single-change iter 5 will miss target by ~0.3-0.4.
+
+### Focus for iter 5 (LAST ITERATION)
+
+Priority ordering by weighted leverage:
+1. **Bilingual propagation** (highest weighted leverage) — render_persona_card + render_result gain data-en/data-ko on every string, read qra-lang from localStorage on DOMContentLoaded, dynamic html[lang], and include the new Regenerate in-flight strings. Expected: i18n 2.5 → 4.0+, accessibility 4.0 → 4.5.
+2. **Health poller: visibilitychange + role=status + soft recovery** — addresses both loading_feedback and a remaining accessibility gap.
+3. **Required `*` indicator + aria-busy on submit** — completes form_ux_flow to 4.5.
+4. **Emoji aria-hidden + confidence pill contrast + body font-size rem** — polish triple that lifts visual_language and final accessibility points.
+5. **Lang-switch onclick → addEventListener** — consistency sweep (frontend_code_quality polish).

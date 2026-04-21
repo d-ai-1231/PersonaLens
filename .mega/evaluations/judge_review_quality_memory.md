@@ -187,3 +187,41 @@ If iter 4 lands (1)+(2)+(3), aggregate projection:
 - validation_semantic_coverage: 2.75 → 3.75 (+1.0 × 0.10 = +0.10)
 - business_goal_anchoring: 3.5 → 4.0 (+0.5 × 0.10 = +0.05)
 - Net aggregate: 3.90 → ~4.05 — above target with one iteration in reserve.
+
+---
+
+## Iteration 4 — Observations
+
+### What was applied
+- **review-output-schema.json:24-31 — `{reason, score}` property reordering.** All 8 score objects reordered from `{score, reason}` to `{reason, score}`. Combined with `_schema_from_template` (agent.py:117) setting `propertyOrdering` in the generated JSON schema, this activates Gemini's constrained-decoding layer to emit `reason` BEFORE `score`, structurally enforcing reason-before-number chain-of-thought. Addresses the score/reason contradiction failure mode identified in the domain-expertise Common Pitfalls.
+- **review-output-schema.json:36 and :45 — journey_stage enum enforcement (rq-local-005).** Both strengths[].journey_stage and findings[].journey_stage changed from bare `"string"` to pipe-enum `"Entry|Orientation|Task start|Core action|Error recovery|Completion|Follow-up / Retention cue"`. `_schema_from_template` (agent.py:138-143) expands this to `{type:"string", enum:[...]}`. This is the first time since baseline that JOURNEY_STAGES is enforced at the decoder level (previously it was prose-only in the packet). Directly lifts validation_semantic_coverage.
+- **webpage.py:111 — `@functools.lru_cache(maxsize=64)` on `fetch_webpage_context`.** Performance / idempotency optimization. Out of scope for review_quality criteria.
+- **webapp.py — Regenerate button re-POST wiring.** UX fix (button now strips persona_json and re-POSTs to /persona instead of full page reload). Out of scope for review_quality criteria.
+- **No changes** to agent.py, gemini.py (evidence/competitor validators), or service.py this iteration. Severity anchors, voice check, rubric, semantic post-checks all unchanged.
+
+### Effects on criteria
+| Criterion | v3 | v4 | Δ | Why |
+|-----------|----|----|---|----|
+| evidence_grounding | 4.25 | 4.25 | 0 | No changes to the post-filter stack; residuals identical to v3. |
+| persona_grounding_and_voice | 4.0 | 4.0 | 0 | No changes to Voice Check or Reflection Loop voice audit. Incidental halo from {reason, score} ordering is too indirect to credit. |
+| finding_severity_discipline | 4.0 | 4.0 | 0 | No changes to severity rubric or blocker-cap. journey_stage enum is referenced in severity instructions but the enum enforcement doesn't reach severity logic itself. |
+| scoring_rubric_calibration | 4.0 | 4.1 | +0.1 | `{reason, score}` property reordering + propertyOrdering in responseSchema structurally enforces reason-before-number CoT at the decoder level. The iter-3 rubric anchors now have a decoder-enforced 'you must justify before numbering' guarantee rather than instruction-following alone. Small but real. |
+| business_goal_anchoring | 3.5 | 3.5 | 0 | Not addressed. No brief.business_goal threading + token-overlap check. |
+| validation_semantic_coverage | 2.75 | 3.25 | +0.5 | journey_stage now enum-enforced at schema/decoder level for both strengths and findings. This was one of the three cheapest-lift gaps noted at iter 0. validate_review_output (gemini.py:351-359) remains structural-only — split-enforcement risk persists — which caps the lift to +0.5 rather than the ~+1.0 that a full per-item validator expansion would have delivered. |
+| **aggregate** | **3.90** | **4.005** | **+0.105** | |
+
+(Aggregate trajectory: 2.68 → 3.06 → 3.725 → 3.90 → 4.005. **Target 4.0 reached at iter 4.**)
+
+### New patterns / observations
+1. **Iter 4 is the smallest-diff iteration of the run** yet delivered exactly enough to cross the 4.0 target line. Both active changes are in a single JSON file; no Python touched for review_quality. Confirms the iter-0 prediction that schema/template-level fixes are among the cheapest ROI in LLM-judge pipelines.
+2. **propertyOrdering + {reason, score}** is a subtle architectural choice. Gemini's constrained-decoding honors `propertyOrdering` when it's set; the prompt_pipeline judge cheatmap apparently flagged this and iter 4 adopted it. The effect is that the model emits `"reason": "..."` first, so its next token (the score integer) is conditioned on the qualitative reasoning it just committed to — this is chain-of-thought with structural enforcement rather than prose instruction.
+3. **Schema-side fixes bypass the plain-text fallback weakness.** The iter-1 memory noted that `build_request_plain_text_fallback` strips systemInstruction. Schema-side enum enforcement works through a different mechanism (responseSchema on inline + fallback builders) so competitor leaks of `journey_stage = 'onboarding'` are now blocked even on the weakest retry path — though the v1 memory notes that the first request builder (with google_search) can't use responseSchema, so journey_stage enum enforcement is LOST on the first attempt. Acceptable tradeoff but worth noting.
+4. **validate_review_output is now 4 iterations old with no change** despite being flagged at every iteration as the single biggest remaining lift. The split-enforcement risk (semantic in run_review vs structural in validate_review_output) is becoming architectural tech debt. If another code path ever calls validate_review_output directly — e.g., a future batch validator or test suite — it will get a false sense of safety.
+5. **business_goal_anchoring has been stalled at 3.5 since iter 0.** It's the lowest-weight critical criterion (0.10) which partly explains the deprioritization, but with iter 5 remaining and the aggregate already at 4.0, this is the cheapest way to push above 4.1.
+
+### Next iteration (iter 5) — highest ROI
+1. **validate_review_output expansion to per-item semantic floor** (rq-local-003 core, still the single largest remaining lift). ~30 lines in gemini.py: FINDING_REQUIRED non-empty, priority/journey_stage enum-in-python-too, strengths items too. Fires on the plain-text fallback path even when responseSchema isn't in effect. Estimated lift: validation_semantic_coverage 3.25 → 4.0 (+0.75 × 0.10 = +0.075 aggregate).
+2. **Business-goal token-overlap check** in run_review (rq-local-003 second half). Thread brief.business_goal through like webpage_context was; add `_check_business_goal_overlap(parsed, business_goal)` that flags expected_business_outcome with zero content-token overlap. ~15 lines. Estimated lift: business_goal_anchoring 3.5 → 4.0 (+0.5 × 0.10 = +0.05 aggregate).
+3. **(Polish)** Extend evidence grounding check to strengths, add blocker-cap post-check, add flat-score heuristic. Each sub-0.05 but combined another ~+0.1 aggregate.
+
+If iter 5 lands (1)+(2), aggregate projection: 4.005 → ~4.13. If it also lands the three polish items, aggregate → ~4.2. This would close the run with headroom above target rather than squeaking over the line.

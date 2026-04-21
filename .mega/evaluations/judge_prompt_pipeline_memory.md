@@ -196,3 +196,48 @@ All 5 criteria now active. Order by leverage × low cost:
 6. **Polish** — builder rotation on semantic failure, Retry-After HTTP-date, webpage relevance filter (top-K by persona terms).
 
 The fix set for iter 4-5 is now well-known and small. Iter 3 cleared the single largest blocker; remaining work is consolidation and topology cleanup rather than new architecture.
+
+---
+
+## Iter 4 Observations & Results (phase: late)
+
+### What got fixed in iter 4 (verified against current source)
+1. **Score field order reversed in review-output-schema.json (lines 24-31)** — all 8 score objects now `{reason, score}` instead of `{score, reason}`. Because _schema_from_template (agent.py:109-118) propagates dict insertion order into both `required` and `propertyOrdering` of the responseSchema, builders 2 (inline) and 3 (plain-text fallback) now have constrained-decode-level enforcement of reasoning-before-commit. The prompt/schema contradiction introduced in iter 3 is resolved: agent.py:302 says `{reason, score}` and the decoder now agrees.
+2. **@functools.lru_cache(maxsize=64) on fetch_webpage_context (webpage.py:3, 114)** — the duplicate-crawl bug flagged since iter 1 is fixed. service.py:90 (generate_persona_from_form) and service.py:18 (build_packet_for_brief) now share a single HTTP round-trip + parse per URL within a process. The cache is process-local with no TTL — fine for single-request lifetime, not a cross-run persistent cache.
+3. **Journey_stage enum tightening (bonus)** — diff notes journey_stage pipe-enum ('Entry|Orientation|...') is now converted by _schema_from_template (agent.py:138-142) to a strict JSON-schema enum `{type: "string", enum: [...]}` on the responseSchema. Additional structural guarantee on strengths[].journey_stage and findings[].journey_stage for builders 2/3. Builder 1 (google_search) cannot carry responseSchema per Gemini API and relies on responseMimeType + prompt.
+4. **webapp.py Regenerate button** — not relevant to prompt_pipeline criteria.
+
+### What was NOT addressed in iter 4 (explicitly called out in diff)
+- SYSTEM_PROMPT still duplicated across gemini.py:394-405 systemInstruction + agent.py:169-170 packet markdown.
+- Competitor rule still 4× (agent.py:46-52 + agent.py:195 + gemini.py:472 + gemini.py:521-526).
+- EVALUATE-not-EXPAND still 3× (agent.py:23-37 + exec instructions 7-10 + reflection-loop bullets).
+- 3 divergent builder shapes retained.
+- No persona cache by (service, type, description) hash.
+- Both stages hardcoded gemini-2.5-pro (service.py:17, 86, 140).
+- Webpage excerpt still 4.4k tokens uncompressed (MAX_PAGES=8 × MAX_EXCERPT_CHARS=2200).
+- Builder rotation coupled to API-attempt index.
+- Retry-After HTTP-date form unparsed.
+
+### Iter 4 Scores
+- prompt_quality: 3.5 (+0.25 from prompt/schema ordering contradiction being resolved at the decoder layer — prompt declaration now actually holds)
+- llm_configuration: 4.25 (+0.5 from constrained-decode-enforced {reason, score} ordering + journey_stage strict enum on 2 of 3 builders)
+- retry_reliability: 4.75 (unchanged)
+- pipeline_structure: 3.75 (+0.75 from duplicate-fetch finally fixed — the most important carryover item from iter 1)
+- token_efficiency: 3.5 (+0.25 from lru_cache eliminating the second crawl's HTTP+parse cost)
+- aggregate: 4.0 (+0.31 over iter 3's 3.6875; target achieved)
+
+### Lessons Learned
+- Iter 4 closed the top two flagged carryover items (score-order + duplicate-fetch) with surgical 1-2 line changes. Total code delta was small; score delta was substantial (+0.31). This confirms a pattern: low-LoC / high-ROI fixes accumulate when the evaluator keeps flagging them iter after iter — eventually one clears.
+- The bonus journey_stage enum expansion is worth noting: _schema_from_template's pipe-enum handling (agent.py:138-142) was already in place, so the structural tightening came "for free" once the schema file was touched. This is good prompt-engineering infrastructure: the schema-compilation path is expressive and small changes to the source schema propagate correctly.
+- Key principle reinforced from iter 3: when prompt and constrained-decoding schema disagree, the decoder wins. Iter 4's fix was not to change the prompt — it was to change the schema so the decoder's output matches the prompt's stated contract. General lesson: prompt text is a weak statement about JSON structure in the presence of a responseSchema; make the schema the source of truth and let the prompt mirror it, not the other way around.
+
+## What to Focus On Next Iteration (iter 5, final)
+
+Remaining backlog is consolidation/topology cleanup. Order by leverage × low cost:
+1. **SYSTEM_PROMPT duplication** — delete the '## System Prompt' block from build_review_packet (agent.py:169-170); add systemInstruction with SYSTEM_PROMPT to builders 2 and 3 (gemini.py:422-449, 452-481). All 3 builders then share one canonical source. +0.25-0.5 on prompt_quality and token_efficiency (~600 tokens/call saved, prompt-cache friendly prefix).
+2. **Consolidate competitor rule 4→1 and EVALUATE-not-EXPAND 3→1** — concrete edits in priority_fixes. +0.25 on prompt_quality, +0.25 on token_efficiency.
+3. **Persona cache by (service, type, description) hash** in service.py + model tier split (gemini-2.5-flash for enrich_persona) — real cost saving and +0.25 on pipeline_structure.
+4. **Webpage relevance filter** (webpage.py) — top-K chunks by persona-term overlap, or lower MAX_EXCERPT_CHARS for non-landing pages. +0.25 on token_efficiency.
+5. **Polish** — builder rotation decoupling on semantic failure, Retry-After HTTP-date form. Low ROI but tidy.
+
+Aggregate 4.0 is at target (iter 0's target_score=4.0). Any combination of items 1-4 above in iter 5 could push aggregate to ~4.25-4.5. Realistic upper bound without architectural change is ~4.5 (builder 1's inability to carry responseSchema is an inherent cap on llm_configuration, and the webpage excerpt is a fundamental context-size choice).
