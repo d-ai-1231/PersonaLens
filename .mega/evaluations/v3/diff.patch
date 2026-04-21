@@ -1,0 +1,219 @@
+diff --git a/src/personalens/agent.py b/src/personalens/agent.py
+index 81bee7c..0d7cb05 100644
+--- a/src/personalens/agent.py
++++ b/src/personalens/agent.py
+@@ -213,6 +213,42 @@ def build_review_packet(brief: ReviewBrief, schema: dict, webpage_context: str |
+             "## Scoring Dimensions",
+             dimension_lines,
+             "",
++            "## Scoring Rubric (1-5 behavioral anchors — use before writing any score)",
++            "Score each dimension from 1 to 5. Do NOT default to 3 or 4 — the middle is reserved for genuinely middling evidence. Use half-points only if the behavior sits between two anchors.",
++            "- **task_clarity** — Can the persona tell in the first screen what the service does and whether it applies to them?",
++            "  - 1: Hero copy is a buzzword cloud; the persona leaves without forming a theory of the product.",
++            "  - 3: Persona can guess the category but not what makes this product different or useful for their job.",
++            "  - 5: Within 10 seconds the persona names the concrete capability relevant to their stated goal.",
++            "- **task_success** — Can the persona get to the stated next step (onboarding / signup / core action) with the information given?",
++            "  - 1: The required next step is missing, buried, or blocked by a login wall with no preview.",
++            "  - 3: The next step exists but the persona must guess what happens after; friction is real but surmountable.",
++            "  - 5: The path to next step is obvious, the expected outcome is stated, and the persona feels moved to proceed.",
++            "- **effort_load** — How much cognitive and scanning effort does the persona spend to get oriented?",
++            "  - 1: Dense walls of text, unclear hierarchy, or required external research to decipher what is on the page.",
++            "  - 3: Scannable but uneven — some sections reward a skim while others demand a full read.",
++            "  - 5: One pass tells the persona what they need; effort matches the decision weight.",
++            "- **trust_confidence** — Does the page give the persona enough proof and credibility to keep going?",
++            "  - 1: No proof, no attribution, no concrete artifacts — claims feel unverifiable.",
++            "  - 3: Some trust signals (logo, quote, metric) but none address the persona's specific skepticism.",
++            "  - 5: Proof assets speak to the persona's stated pain point, with attribution and specificity.",
++            "- **value_communication** — Does the page explain the persona-specific value, not generic benefit?",
++            "  - 1: Benefits are generic industry platitudes with no persona fit.",
++            "  - 3: Benefits are concrete but not tied to the persona's stated goals or pains.",
++            "  - 5: Benefits name the persona's real workflow and show the outcome in their terms.",
++            "- **error_recovery** — When something is unclear, missing, or ambiguous, what path back is offered?",
++            "  - 1: Dead ends — broken states, empty sections, or confusing CTAs with no recovery cues.",
++            "  - 3: Recovery exists but the persona must hunt for it; error copy is generic.",
++            "  - 5: Every confusing spot is paired with a clear next action or escape hatch appropriate to the persona.",
++            "- **accessibility** — Can the persona's device/ability context consume this page?",
++            "  - 1: Blockers for the stated device_context (e.g., unreadable on mobile, tiny touch targets, missing captions).",
++            "  - 3: Usable with effort on the stated device; some a11y concerns (contrast, labels, keyboard path).",
++            "  - 5: Smooth on the stated device; visible care for contrast, labels, and assistive tech; no blockers.",
++            "- **emotional_fit** — Does the tone match the persona's voice and decision style?",
++            "  - 1: Tone clashes with the persona (overly hyped for a skeptic, overly technical for a non-dev, etc.).",
++            "  - 3: Tone is neutral/safe but does not resonate with the persona's anchors.",
++            "  - 5: Copy and visual rhythm feel written FOR this persona's voice and decision style.",
++            "If observable evidence is insufficient to place a dimension on this rubric, say so in `reason` and score 3 with a confidence note — do not inflate or guess.",
++            "",
+             "## Voice Check (do not skip)",
+             (
+                 f"Every persona_voice and persona_reason field MUST be a first-person quote from {persona.name} "
+@@ -262,10 +298,8 @@ def build_review_packet(brief: ReviewBrief, schema: dict, webpage_context: str |
+             "",
+             "If any item fails, revise before returning the final result.",
+             "",
+-            "## Required Output Schema",
+-            "```json",
+-            json.dumps(schema, ensure_ascii=False, indent=2),
+-            "```",
++            "## Required Output",
++            "Return a single JSON object with these top-level keys: review_summary, persona_card, scores, strengths, findings, prioritized_improvements, open_questions. Each score is `{reason, score}`; each finding includes priority, journey_stage, problem, persona_voice, evidence, impact_on_user, impact_on_business, improvement_direction. Structural contracts are enforced via the API's responseSchema on the inline and fallback call paths.",
+         ]
+     )
+ 
+diff --git a/src/personalens/webapp.py b/src/personalens/webapp.py
+index 2b782f7..b9a8cc7 100644
+--- a/src/personalens/webapp.py
++++ b/src/personalens/webapp.py
+@@ -182,7 +182,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
+     def v(key: str, default: str = "") -> str:
+         return html.escape(values.get(key, default))
+ 
+-    error_block = f'<div class="error">{html.escape(error)}</div>' if error else ""
++    error_block = f'<div class="error" role="alert" aria-live="assertive">{html.escape(error)}</div>' if error else ""
+     return f"""<!doctype html>
+ <html lang="en">
+ <head>
+@@ -348,18 +348,18 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
+ </head>
+ <body>
+   <div class="wrap">
+-    <div class="hero">
++    <header class="hero">
+       <div class="hero-top">
+         <div class="badge" data-en="Non-Developer Friendly" data-ko="비개발자도 OK">Non-Developer Friendly</div>
+-        <div class="lang-switch">
+-          <button class="active" onclick="setLang('en')">English</button>
+-          <button onclick="setLang('ko')">한국어</button>
+-        </div>
++        <nav class="lang-switch" aria-label="Language">
++          <button class="active" onclick="setLang('en')" aria-pressed="true">English</button>
++          <button onclick="setLang('ko')" aria-pressed="false">한국어</button>
++        </nav>
+       </div>
+       <h1 data-en="Review your service like a real user would." data-ko="실제 사용자의 눈으로 서비스를 리뷰하세요.">Review your service like a real user would.</h1>
+       <div class="sub" data-en="Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements." data-ko="간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다.">Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements.</div>
+-    </div>
+-    <div class="grid">
++    </header>
++    <main class="grid">
+       <form class="card" method="post" action="/review">
+         {error_block}
+         <label for="service_name" data-en="Service name" data-ko="서비스 이름">Service name</label>
+@@ -412,7 +412,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
+           <li data-en="If the model lacks enough evidence, it should say so instead of faking certainty." data-ko="근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다.">If the model lacks enough evidence, it should say so instead of faking certainty.</li>
+         </ul>
+       </div>
+-    </div>
++    </main>
+   </div>
+ <script>
+ function setLang(lang) {{
+@@ -423,7 +423,9 @@ function setLang(lang) {{
+     el.placeholder = el.getAttribute('data-placeholder-' + lang) || el.placeholder;
+   }});
+   document.querySelectorAll('.lang-switch button').forEach(btn => {{
+-    btn.classList.toggle('active', btn.textContent === (lang === 'ko' ? '한국어' : 'English'));
++    const active = btn.textContent === (lang === 'ko' ? '한국어' : 'English');
++    btn.classList.toggle('active', active);
++    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+   }});
+   document.documentElement.lang = lang;
+   localStorage.setItem('qra-lang', lang);
+@@ -667,16 +669,18 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
+ </head>
+ <body>
+   <div class="wrap">
+-    <div class="hero">
++    <header class="hero">
+       <div>
+         <h1>{esc(form.get('service_name', 'Service Review'))}</h1>
+         <div class="verdict">{esc(summary.get('verdict', ''))}</div>
+         <span class="conf" style="color:{conf_color};background:{conf_color}18">Confidence: {esc(confidence)}</span>
+       </div>
+       <a class="btn" href="/">Run another review</a>
+-    </div>
++    </header>
+ 
+-    <div class="card">
++    <main>
++    <section class="card" aria-labelledby="summary-heading">
++      <h2 id="summary-heading" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Summary</h2>
+       <div class="fi">
+         <div class="fi-item">
+           <div class="fi-label">First impression</div>
+@@ -687,34 +691,35 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
+           {esc(summary.get('why_it_matters', ''))}
+         </div>
+       </div>
+-    </div>
++    </section>
+ 
+     <div class="row row-2">
+-      <div class="card">
+-        <h2>📊 Scores</h2>
++      <section class="card" aria-labelledby="scores-heading">
++        <h2 id="scores-heading">📊 Scores</h2>
+         {render_score_bar()}
+-      </div>
++      </section>
+       <div>
+-        <div class="card">
+-          <h2>✅ Strengths</h2>
++        <section class="card" aria-labelledby="strengths-heading">
++          <h2 id="strengths-heading">✅ Strengths</h2>
+           {render_compact_findings(strengths, is_strength=True)}
+-        </div>
+-        <div class="card">
+-          <h2>❓ Open questions</h2>
++        </section>
++        <section class="card" aria-labelledby="oq-heading">
++          <h2 id="oq-heading">❓ Open questions</h2>
+           {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty'>None</p>"}
+-        </div>
++        </section>
+       </div>
+     </div>
+ 
+-    <div class="card">
+-      <h2>🔍 Findings</h2>
++    <section class="card" aria-labelledby="findings-heading">
++      <h2 id="findings-heading">🔍 Findings</h2>
+       {render_compact_findings(findings, is_strength=False)}
+-    </div>
++    </section>
+ 
+-    <div class="card">
+-      <h2>🚀 Improvements</h2>
++    <section class="card" aria-labelledby="improvements-heading">
++      <h2 id="improvements-heading">🚀 Improvements</h2>
+       {render_compact_improvements()}
+-    </div>
++    </section>
++    </main>
+   </div>
+ </body>
+ {AUTO_RECONNECT_SCRIPT}
+@@ -779,13 +784,13 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
+ </head>
+ <body>
+   <div class="wrap">
+-    <div class="hero">
++    <header class="hero">
+       <div class="badge">Step 2 of 3 — Persona Check</div>
+       <h1>Does this persona look right?</h1>
+       <p>Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed.</p>
+-    </div>
++    </header>
+ 
+-    <div class="card">
++    <main class="card">
+       <div class="p-name">{esc(persona.get('name', ''))}</div>
+       <div class="p-segment">{esc(persona.get('segment', ''))}</div>
+ 
+@@ -836,7 +841,7 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
+         </div>
+         <div class="hint">The review may take up to a minute to generate.</div>
+       </form>
+-    </div>
++    </main>
+   </div>
+ <script>
+ (function() {{

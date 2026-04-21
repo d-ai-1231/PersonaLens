@@ -146,3 +146,53 @@ Priority order unchanged from iter 1 memo because none of iter 1's priority_fixe
 5. **Polish (low sev)**: rotate builders on semantic failure; Retry-After HTTP-date form parsing.
 
 If iter 3 touches the embedded schema, verify builder 1 (grounded) still returns valid JSON — it can't use responseSchema (incompatible with google_search), so it relies on responseMimeType + prompt key list. Keep a short top-level key list in the prompt as its structure hint.
+
+---
+
+## Iter 3 Observations & Results (phase: late — token_efficiency now active)
+
+### What got fixed in iter 3 (verified against current source)
+1. **Embedded JSON schema dump REMOVED from build_review_packet (agent.py:301-302)** — the 80-line `json.dumps(schema, ensure_ascii=False, indent=2)` code-fenced block is gone. Replaced with a single prose line listing top-level keys (review_summary, persona_card, scores, strengths, findings, prioritized_improvements, open_questions) and per-finding field contract, plus a pointer to the API-side responseSchema enforcement. This is the single highest-leverage fix from the 3-iter backlog. Est. 500-700 token savings per call (partially offset by rubric).
+2. **35-line scoring rubric added (agent.py:216-250)** — behavioral anchors at 1/3/5 for all 8 dimensions, with explicit anti-default-to-3/4 guidance and "say so in reason and score 3 with confidence note — do not inflate or guess" fallback. Real prompt-engineering quality, ~200-300 token cost.
+3. **Prompt text now states `{reason, score}` ordering (agent.py:302)** — the prose output summary says "Each score is `{reason, score}`", attempting reasoning-before-commit via prompt. BUT see regression below.
+
+### NEW ISSUE introduced in iter 3
+- **Contradiction between prompt and enforced schema on score field order**: agent.py:302 declares `{reason, score}`, but review-output-schema.json:23-31 still has `{score, reason}`. _schema_from_template (agent.py:115, 117) propagates dict insertion order into both `required` and `propertyOrdering` of the responseSchema. On builders 2 and 3 (which attach the responseSchema), the constrained decoder emits {score, reason} at decode time — overriding the prompt text. CoT reasoning-before-commit is asserted in the prompt but defeated by the decoder. One-line fix: reorder the 8 score objects in review-output-schema.json.
+
+### What was NOT addressed in iter 3 (all carries forward)
+- review-output-schema.json still {score, reason} — now actively contradicts prompt.
+- Duplicate fetch_webpage_context (service.py:18, service.py:90) — unchanged.
+- No persona cache by (service, type, description) hash.
+- Both stages hardcoded gemini-2.5-pro (service.py:17, 86, 140).
+- SYSTEM_PROMPT still duplicated across gemini.py:394-405 systemInstruction AND agent.py:169-170 packet markdown.
+- Competitor rule still 4× (SYSTEM_PROMPT + Known Competitors header + plain_text_fallback + enrich_persona).
+- EVALUATE-not-EXPAND still 3× (SYSTEM_PROMPT + exec instructions 7-10 + reflection-loop bullets).
+- 3 divergent builder shapes retained.
+- Webpage excerpt still 4.4k tokens uncompressed (MAX_PAGES=8 × 2200 chars).
+- Builder rotation coupled to API-attempt index — semantic-validation failure on attempt 0 does not rotate to a responseSchema-backed builder on attempt 1.
+- Retry-After HTTP-date form still unparsed.
+
+### Iter 3 Scores
+- prompt_quality: 3.25 (+0.25 from scoring rubric + prose {reason, score} intent)
+- llm_configuration: 3.75 (+0.25 from schema removed from prompt; offset partially by the new prompt/schema contradiction)
+- retry_reliability: 4.75 (unchanged)
+- pipeline_structure: 3.0 (unchanged)
+- token_efficiency: 3.25 (+0.75 on first activation — schema block removal is a real ~300-500 net token saving after offsetting the rubric)
+- aggregate: 3.6875 (+0.20 over iter 2's 3.4875)
+
+### Lessons Learned
+- The highest-leverage backlog item finally got done in iter 3. Three consecutive iterations of flagging the same fix eventually moved it; the trigger appears to be the diff narrative explicitly highlighting it as "flagged as highest-leverage open fix for three consecutive iterations."
+- Removing the JSON schema from the prompt is correct, but it is only half the move — without also fixing the source schema file's field order, the prompt's new {reason, score} claim is actively overridden by the enforced responseSchema. This surfaces a general rule: when prompt and constrained-decoding schema disagree, the decoder wins and the prompt text becomes noise.
+- Adding the behavioral-anchor rubric alongside the schema removal is a clever net-positive: it replaces brittle prompt-as-spec tokens with model-quality tokens.
+
+## What to Focus On Next Iteration (iter 4, final-phase: late)
+
+All 5 criteria now active. Order by leverage × low cost:
+1. **Fix review-output-schema.json score field order** to `{reason, score}` (8 lines, propagates through agent.py:_schema_from_template into propertyOrdering+required on the responseSchema). This is a one-minute edit that completes iter 3's CoT intent. +0.25-0.5 on llm_configuration and prompt_quality.
+2. **Duplicate fetch_webpage_context** — simplest viable is @functools.lru_cache on webpage.py:113. Alternatively thread webpage_context through service.py so the form handler crawls once and both persona enrichment + review share the snapshot. +0.5-1.0 on pipeline_structure.
+3. **SYSTEM_PROMPT duplication** — keep only in systemInstruction on all 3 builders (currently only builder 1 has systemInstruction), delete the '## System Prompt' block from build_review_packet. +0.25-0.5 on token_efficiency (prefix-caching friendliness) and prompt_quality.
+4. **Consolidate competitor rule 4→1 and EVALUATE-not-EXPAND 3→1** — see priority_fixes. +0.25-0.5 on prompt_quality.
+5. **Model tier split** — gemini-2.5-flash for enrich_persona, keep -pro for run_review. Real cost saving, not a score-mover.
+6. **Polish** — builder rotation on semantic failure, Retry-After HTTP-date, webpage relevance filter (top-K by persona terms).
+
+The fix set for iter 4-5 is now well-known and small. Iter 3 cleared the single largest blocker; remaining work is consolidation and topology cleanup rather than new architecture.

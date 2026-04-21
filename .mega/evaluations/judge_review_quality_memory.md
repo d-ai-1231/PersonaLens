@@ -145,3 +145,45 @@ If iter 2 lands both (1) and (2+3), aggregate should reach ~3.7–3.8. Target 4.
 4. **Lightweight per-finding field completeness check** in validate_review_output (FINDING_REQUIRED non-empty, priority in enum, journey_stage in JOURNEY_STAGES) to formalize what the post-filter implies and close the split-enforcement risk.
 
 If iter 3 lands (1)+(2)+(3), aggregate should reach ~4.1–4.2 — above the 4.0 target with one iteration to spare for polish (strengths-evidence grounding, voice coverage of review_summary fields, blocker-cap code enforcement).
+
+---
+
+## Iteration 3 — Observations
+
+### What was applied
+- **agent.py:216-250 — `## Scoring Rubric (1-5 behavioral anchors)` block landed.** Inserted immediately after `## Scoring Dimensions` and before `## Voice Check`. Covers all 8 dimensions (task_clarity, task_success, effort_load, trust_confidence, value_communication, error_recovery, accessibility, emotional_fit) with explicit 1/3/5 behavioral anchors keyed to the persona's `device_context`, `decision_style`, and `business_goal`. This is the textbook rq-local-002 fix.
+- **Anti-inflation safeguard.** Closing line at agent.py:250: "If observable evidence is insufficient to place a dimension on this rubric, say so in `reason` and score 3 with a confidence note — do not inflate or guess." Prevents the inflation-cure from overshooting (a common failure when LLMs are told "do not default to 3" — they over-correct to 2s and 4s).
+- **agent.py:301-302 — Schema-dump removal.** The 80-line embedded JSON schema block was replaced with a compact prose summary of required top-level keys and per-item field contracts. Reduces total prompt length, marginally freeing attention for the new rubric. Does not affect review_quality criteria directly since structural contracts are still enforced via the API's responseSchema on inline + fallback call paths.
+- **webapp.py — semantic landmark + aria-pressed work.** Out of scope for review_quality criteria.
+
+### Effects on criteria
+| Criterion | v2 | v3 | Δ | Why |
+|-----------|----|----|---|----|
+| evidence_grounding | 4.25 | 4.25 | 0 | Not addressed. Post-filter stack from iter 2 intact. |
+| persona_grounding_and_voice | 4.0 | 4.0 | 0 | Not addressed. Voice Check + Reflection Loop voice audit intact. Marginal prompt-length savings from schema-dump removal not creditable. |
+| finding_severity_discipline | 4.0 | 4.0 | 0 | Not addressed. Severity rubric + blocker-cap prose intact. |
+| scoring_rubric_calibration | 2.5 | 4.0 | +1.5 | Full rq-local-002 fix landed. Per-dimension 1/3/5 anchors + anti-central-tendency framing + anti-inflation safeguard. Schema already has `{reason, score}` ordering (reason-before-number CoT). Residual: no code-level score/reason contradiction check and no flat-score detection. |
+| business_goal_anchoring | 3.5 | 3.5 | 0 | Not addressed. No token-overlap check threaded yet. |
+| validation_semantic_coverage | 2.75 | 2.75 | 0 | Not addressed. journey_stage still bare string in schema. validate_review_output still structural-only. Split-enforcement risk persists. |
+| **aggregate** | **3.725** | **3.90** | **+0.175** | |
+
+(Aggregate trajectory: 2.68 → 3.06 → 3.725 → 3.90. The target of 4.0 is now 0.10 away.)
+
+### New patterns / observations
+1. **The iter-3 rubric is the most expensive-looking but cheapest-to-apply single fix of the whole optimization** — pure prose, single file, ~35 lines, delivered the largest single-criterion lift (+1.5) of any iteration so far. This confirms the iter-0 baseline prediction that prompt-level fixes dominate early-iteration ROI for LLM-judge criteria.
+2. **Rubric anchors are cleverly keyed to persona fields** (device_context mentioned in accessibility.1, decision_style + voice in emotional_fit, business_goal referenced in trust_confidence.5 and value_communication anchors). This couples the scoring dimension to the persona rather than to abstract UX heuristics, which should propagate into `reason` fields that reference the persona rather than generic principles.
+3. **Schema-dump removal** is a subtle win: the iter-0 and iter-1 packets had a giant JSON blob that probably consumed 15-20% of the context window with zero instruction-following value (since responseSchema already enforces structure). Removing it is one of those "we were paying rent on a duplicate constraint" savings.
+4. **The `{reason, score}` ordering in review-output-schema.json (lines 23-32)** pre-existed the iter-3 rubric but was under-exploited — without the rubric, the model could write a generic `reason` then pick any number. The rubric now gives the model a checklist to consult while generating `reason`, turning the field ordering into an effective chain-of-thought anchor.
+5. **validation_semantic_coverage is now the clear bottom-scoring criterion by a large margin (2.75 vs next-lowest 3.5).** Two of the three easiest wins noted at iter 0 (rq-local-005 journey_stage enum, per-finding field-completeness check) are still un-done. These should be priority 1 for iter 4.
+6. **Split-enforcement risk** noted at iter 2 (semantic layer in run_review vs structural-only validate_review_output) is now 3 iterations old and starting to feel permanent. A small refactor moving the semantic post-checks into validate_review_output (or at minimum documenting that validate_review_output is structural-only with a docstring + type hint) would close this cleanly.
+
+### Next iteration (iter 4) — highest ROI
+1. **journey_stage enum in review-output-schema.json** (rq-local-005) — replace bare `"string"` at lines 36 and 45 with the pipe-enum syntax. _schema_from_template already handles it. Trivial effort, direct lift to validation_semantic_coverage.
+2. **Per-finding FINDING_REQUIRED non-empty floor + priority/journey_stage enum checks in validate_review_output** (rq-local-003 core). Medium effort, largest remaining single lift for validation_semantic_coverage (2.75 → ~3.75).
+3. **Thread brief.business_goal through run_review + token-overlap check on expected_business_outcome** (rq-local-003 partial). Medium effort, lifts business_goal_anchoring 3.5 → ~4.0.
+4. **(Polish) Score/reason contradiction heuristic + flat-score detection** for scoring_rubric_calibration. Lower-ROI; only worth doing if iter 4 is otherwise light.
+
+If iter 4 lands (1)+(2)+(3), aggregate projection:
+- validation_semantic_coverage: 2.75 → 3.75 (+1.0 × 0.10 = +0.10)
+- business_goal_anchoring: 3.5 → 4.0 (+0.5 × 0.10 = +0.05)
+- Net aggregate: 3.90 → ~4.05 — above target with one iteration in reserve.
