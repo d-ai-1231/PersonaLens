@@ -348,6 +348,23 @@ def extract_text(response_json: dict) -> str:
     return "".join(texts).strip()
 
 
+_FINDING_REQUIRED_FIELDS = (
+    "priority",
+    "title",
+    "journey_stage",
+    "problem",
+    "persona_voice",
+    "evidence",
+    "impact_on_user",
+    "impact_on_business",
+    "improvement_direction",
+)
+
+_STRENGTH_REQUIRED_FIELDS = ("title", "journey_stage", "persona_reason", "evidence")
+
+_VALID_PRIORITIES = {"Blocker", "High", "Medium", "Nit"}
+
+
 def validate_review_output(data: dict) -> str:
     for key in ["review_summary", "persona_card", "scores", "prioritized_improvements"]:
         if data.get(key) in (None, {}, []):
@@ -355,6 +372,29 @@ def validate_review_output(data: dict) -> str:
 
     if not data.get("strengths") and not data.get("findings"):
         return "both strengths and findings are empty"
+
+    findings = data.get("findings") or []
+    if isinstance(findings, list):
+        for idx, finding in enumerate(findings):
+            if not isinstance(finding, dict):
+                return f"findings[{idx}] is not an object"
+            for field in _FINDING_REQUIRED_FIELDS:
+                value = finding.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    return f"findings[{idx}] missing non-empty '{field}'"
+            # priority already confirmed non-empty above; now enforce the enum.
+            if finding["priority"] not in _VALID_PRIORITIES:
+                return f"findings[{idx}].priority must be one of Blocker|High|Medium|Nit"
+
+    strengths = data.get("strengths") or []
+    if isinstance(strengths, list):
+        for idx, strength in enumerate(strengths):
+            if not isinstance(strength, dict):
+                return f"strengths[{idx}] is not an object"
+            for field in _STRENGTH_REQUIRED_FIELDS:
+                value = strength.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    return f"strengths[{idx}] missing non-empty '{field}'"
 
     return ""
 
