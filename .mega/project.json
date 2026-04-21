@@ -8,7 +8,7 @@
   "currentIteration": 0,
   "currentCommit": null,
   "completedPhases": [],
-  "dataStatus": "pending",
+  "dataStatus": "synthesized",
   "temperatureEnforced": false,
   "optimization": {
     "maxIterations": 20,
@@ -31,5 +31,9 @@
     }
   },
   "createdAt": "2026-04-21T01:18:37Z",
-  "updatedAt": "2026-04-21T01:18:37Z"
+  "updatedAt": "2026-04-21T01:18:37Z",
+  "evaluationMode": "agent-eval",
+  "agentEval": {
+    "maxIterations": 5
+  }
 }

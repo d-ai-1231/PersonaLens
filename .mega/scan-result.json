@@ -1,6 +1,132 @@
 {
   "mode": "adapt",
-  "sourceFiles": [],
-  "dataFiles": [],
-  "workflowNodes": []
+  "projectType": "modular-project",
+  "language": "Python",
+  "totalLOC": 3630,
+  "fileCount": 21,
+  "hasLLM": true,
+  "hasEntryPoint": true,
+  "hasEvaluation": false,
+  "hasDataLoading": false,
+  "hasMultiWorkflow": false,
+  "targetWorkflow": "persona_review_pipeline",
+  "evalFunctions": [],
+  "dataLoadingMethod": "unknown",
+  "dataLoadingFunction": null,
+  "sourceFiles": [
+    "src/personalens/__init__.py",
+    "src/personalens/__main__.py",
+    "src/personalens/agent.py",
+    "src/personalens/cli.py",
+    "src/personalens/diagnostics.py",
+    "src/personalens/gemini.py",
+    "src/personalens/interactive.py",
+    "src/personalens/markdown_report.py",
+    "src/personalens/models.py",
+    "src/personalens/service.py",
+    "src/personalens/skill_helper.py",
+    "src/personalens/slack_bridge.py",
+    "src/personalens/slack_server.py",
+    "src/personalens/webapp.py",
+    "src/personalens/webpage.py",
+    "tests/test_diagnostics.py",
+    "tests/test_gemini.py",
+    "tests/test_service.py",
+    "tests/test_slack_bridge.py",
+    "tests/test_slack_server.py",
+    "tests/test_webpage.py"
+  ],
+  "dataFiles": [
+    "review-output-schema.json",
+    "examples/brief.json"
+  ],
+  "workflowNodes": [
+    {
+      "id": "persona_review_pipeline",
+      "entryPoint": "src/personalens/service.py:run_review_for_brief",
+      "nodes": [
+        {
+          "id": "parse_form_basics",
+          "name": "parse_form_basics",
+          "type": "code",
+          "function": "_parse_form_basics",
+          "codeDescription": "Normalizes form input: strips unicode smart quotes, splits competitors/problems on commas/newlines, applies default service_type='web product', default business_goal. Pure string manipulation, no external calls.",
+          "language": "python",
+          "inputs": ["form_data_dict"],
+          "outputs": ["normalized_basics_dict"]
+        },
+        {
+          "id": "fetch_webpage_context",
+          "name": "fetch_webpage_context",
+          "type": "code",
+          "function": "fetch_webpage_context",
+          "codeDescription": "Same-domain BFS crawler using stdlib urllib + HTMLParser. SSRF-guarded (is_safe_request_url blocks private/localhost IPs). Crawls up to MAX_PAGES=8 pages, extracts stripped text (MAX_EXCERPT_CHARS=2200 per page), links, nav items, aria-labels. No JavaScript execution. Follows up to MAX_REDIRECTS=5 redirects. Returns a multi-line text block summarizing the site snapshot.",
+          "language": "python",
+          "inputs": ["service_url"],
+          "outputs": ["webpage_context_text"]
+        },
+        {
+          "id": "enrich_persona",
+          "name": "enrich_persona",
+          "type": "llm",
+          "function": "enrich_persona",
+          "prompt": "You are a UX research expert. Based on the inputs below AND web research, generate a detailed persona card as JSON.\n\n## Your Research Tasks\nBefore generating the persona, search the web for:\n1. \"{service_name}\" — what this service does, user reviews, community feedback\n2. \"{service_type} user persona\" — typical user profiles for this type of service\n3. \"{service_type} user pain points\" — common frustrations users face\n\nUse what you find to make the persona grounded in real-world data, not assumptions.\n\n## CRITICAL RULE ON COMPETITORS AND OTHER PRODUCTS\n- Do NOT infer, guess, or mention any specific competitor product names.\n- Do NOT speculate about what tools this persona currently uses.\n- Do NOT include any product names in goals, pain_points, context, or any other field unless they were explicitly provided in the user's inputs.\n- Focus on the persona's characteristics, behaviors, and motivations",
+          "model": "gemini-2.5-pro",
+          "inputs": ["service_name", "service_url", "service_type", "core_journey", "persona_description", "problems", "business_goal", "webpage_text"],
+          "outputs": ["persona_card_dict"]
+        },
+        {
+          "id": "create_brief_from_form",
+          "name": "create_brief_from_form",
+          "type": "code",
+          "function": "create_brief_from_form",
+          "codeDescription": "Constructs a ReviewBrief dataclass from normalized form data and the enriched persona. Applies field caps (e.g., goals[:5], voice[:5]), attaches default constraints/notes, and builds the review_goal string. Runs ReviewBrief.validate() implicitly via build_review_packet.",
+          "language": "python",
+          "inputs": ["normalized_basics_dict", "persona_card_dict"],
+          "outputs": ["review_brief"]
+        },
+        {
+          "id": "build_review_packet",
+          "name": "build_review_packet",
+          "type": "code",
+          "function": "build_review_packet",
+          "codeDescription": "Assembles the ~250-line markdown prompt packet from SYSTEM_PROMPT, ReviewBrief fields, competitors, evidence, webpage_context, JOURNEY_STAGES (7), SCORING_DIMENSIONS (8), VALIDATION_CRITERIA (7), 17-step Execution Instructions, and the JSON output schema. Also produces a JSON Schema via _schema_from_template (recursive converter: dict→object with required+propertyOrdering, list→array, int=1→integer with min=1/max=5, str with pipes→enum).",
+          "language": "python",
+          "inputs": ["review_brief", "output_schema", "webpage_context"],
+          "outputs": ["review_packet_markdown", "response_json_schema"]
+        },
+        {
+          "id": "run_review",
+          "name": "run_review",
+          "type": "llm",
+          "function": "run_review",
+          "prompt": "You are a persona-based quality review agent.\nReview the public pre-login website experience as a specific target user, not as a generic QA assistant.\nKeep the persona voice consistent, but anchor every claim in observable evidence.\nSeparate observed friction from proposed solutions.\nPrioritize findings by user impact.\nAlways distinguish evidence from inference.\nIf evidence is weak or incomplete, say so explicitly and lower confidence.\nFocus especially on value clarity, trust, message hierarchy, CTA strength, and whether the site gives the persona a compelling reason to start onboarding.\nEnd with prioritized improvements and open questions.\n\nFUNDAMENTAL EVALUATION FRAMEWORK (this is non-negotiable):\nYour job is to EVALUATE whether the website effectively serves the user's STATED goals",
+          "model": "gemini-2.5-pro",
+          "systemPrompt": "You are a persona-based quality review agent. Return only valid JSON that matches the requested structure. Do not return null for required top-level sections. If evidence is limited, say so inside the JSON rather than returning an empty structure. Use Google Search to research the service, its competitors, and user feedback to ground your review in real-world evidence.",
+          "inputs": ["review_packet_markdown", "response_json_schema"],
+          "outputs": ["review_result_json"]
+        },
+        {
+          "id": "validate_review_output",
+          "name": "validate_review_output",
+          "type": "code",
+          "function": "validate_review_output",
+          "codeDescription": "Structural validator for the Gemini JSON response. Checks that review_summary, persona_card, scores, prioritized_improvements are present and non-empty (not None/{}/[]), and that at least one of strengths or findings is non-empty. Returns an error string (empty string means valid); empty result triggers retry via the surrounding run_review loop.",
+          "language": "python",
+          "inputs": ["review_result_json"],
+          "outputs": ["validation_error_string"]
+        },
+        {
+          "id": "render_markdown_report",
+          "name": "render_markdown_report",
+          "type": "code",
+          "function": "render_markdown_report",
+          "codeDescription": "Formats the validated JSON review into a human-readable markdown report with scores table, strengths/findings sections, prioritized improvements, and open questions. Used by webapp (POST /review) and interactive.py to save review-{service}-{timestamp}.md.",
+          "language": "python",
+          "inputs": ["review_result_json"],
+          "outputs": ["markdown_report_string"]
+        }
+      ]
+    }
+  ]
 }
