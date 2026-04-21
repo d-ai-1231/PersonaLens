@@ -182,7 +182,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
     def v(key: str, default: str = "") -> str:
         return html.escape(values.get(key, default))
 
-    error_block = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    error_block = f'<div class="error" role="alert" aria-live="assertive">{html.escape(error)}</div>' if error else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -348,18 +348,18 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <header class="hero">
       <div class="hero-top">
         <div class="badge" data-en="Non-Developer Friendly" data-ko="비개발자도 OK">Non-Developer Friendly</div>
-        <div class="lang-switch">
-          <button class="active" onclick="setLang('en')">English</button>
-          <button onclick="setLang('ko')">한국어</button>
-        </div>
+        <nav class="lang-switch" aria-label="Language">
+          <button class="active" onclick="setLang('en')" aria-pressed="true">English</button>
+          <button onclick="setLang('ko')" aria-pressed="false">한국어</button>
+        </nav>
       </div>
       <h1 data-en="Review your service like a real user would." data-ko="실제 사용자의 눈으로 서비스를 리뷰하세요.">Review your service like a real user would.</h1>
       <div class="sub" data-en="Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements." data-ko="간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다.">Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements.</div>
-    </div>
-    <div class="grid">
+    </header>
+    <main class="grid">
       <form class="card" method="post" action="/review">
         {error_block}
         <label for="service_name" data-en="Service name" data-ko="서비스 이름">Service name</label>
@@ -412,7 +412,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
           <li data-en="If the model lacks enough evidence, it should say so instead of faking certainty." data-ko="근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다.">If the model lacks enough evidence, it should say so instead of faking certainty.</li>
         </ul>
       </div>
-    </div>
+    </main>
   </div>
 <script>
 function setLang(lang) {{
@@ -423,7 +423,9 @@ function setLang(lang) {{
     el.placeholder = el.getAttribute('data-placeholder-' + lang) || el.placeholder;
   }});
   document.querySelectorAll('.lang-switch button').forEach(btn => {{
-    btn.classList.toggle('active', btn.textContent === (lang === 'ko' ? '한국어' : 'English'));
+    const active = btn.textContent === (lang === 'ko' ? '한국어' : 'English');
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   }});
   document.documentElement.lang = lang;
   localStorage.setItem('qra-lang', lang);
@@ -667,16 +669,18 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <header class="hero">
       <div>
         <h1>{esc(form.get('service_name', 'Service Review'))}</h1>
         <div class="verdict">{esc(summary.get('verdict', ''))}</div>
         <span class="conf" style="color:{conf_color};background:{conf_color}18">Confidence: {esc(confidence)}</span>
       </div>
       <a class="btn" href="/">Run another review</a>
-    </div>
+    </header>
 
-    <div class="card">
+    <main>
+    <section class="card" aria-labelledby="summary-heading">
+      <h2 id="summary-heading" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Summary</h2>
       <div class="fi">
         <div class="fi-item">
           <div class="fi-label">First impression</div>
@@ -687,34 +691,35 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
           {esc(summary.get('why_it_matters', ''))}
         </div>
       </div>
-    </div>
+    </section>
 
     <div class="row row-2">
-      <div class="card">
-        <h2>📊 Scores</h2>
+      <section class="card" aria-labelledby="scores-heading">
+        <h2 id="scores-heading">📊 Scores</h2>
         {render_score_bar()}
-      </div>
+      </section>
       <div>
-        <div class="card">
-          <h2>✅ Strengths</h2>
+        <section class="card" aria-labelledby="strengths-heading">
+          <h2 id="strengths-heading">✅ Strengths</h2>
           {render_compact_findings(strengths, is_strength=True)}
-        </div>
-        <div class="card">
-          <h2>❓ Open questions</h2>
+        </section>
+        <section class="card" aria-labelledby="oq-heading">
+          <h2 id="oq-heading">❓ Open questions</h2>
           {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty'>None</p>"}
-        </div>
+        </section>
       </div>
     </div>
 
-    <div class="card">
-      <h2>🔍 Findings</h2>
+    <section class="card" aria-labelledby="findings-heading">
+      <h2 id="findings-heading">🔍 Findings</h2>
       {render_compact_findings(findings, is_strength=False)}
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>🚀 Improvements</h2>
+    <section class="card" aria-labelledby="improvements-heading">
+      <h2 id="improvements-heading">🚀 Improvements</h2>
       {render_compact_improvements()}
-    </div>
+    </section>
+    </main>
   </div>
 </body>
 {AUTO_RECONNECT_SCRIPT}
@@ -779,13 +784,13 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <header class="hero">
       <div class="badge">Step 2 of 3 — Persona Check</div>
       <h1>Does this persona look right?</h1>
       <p>Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed.</p>
-    </div>
+    </header>
 
-    <div class="card">
+    <main class="card">
       <div class="p-name">{esc(persona.get('name', ''))}</div>
       <div class="p-segment">{esc(persona.get('segment', ''))}</div>
 
@@ -836,7 +841,7 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
         </div>
         <div class="hint">The review may take up to a minute to generate.</div>
       </form>
-    </div>
+    </main>
   </div>
 <script>
 (function() {{
