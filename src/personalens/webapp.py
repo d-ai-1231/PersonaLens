@@ -836,7 +836,7 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
         <input type="hidden" name="persona_json" value="{persona_json}">
         <div class="actions">
           <button class="btn btn-primary" type="submit">👍 Looks good, run review</button>
-          <button class="btn btn-ghost" type="button" onclick="location.reload()">🔄 Regenerate</button>
+          <button class="btn btn-ghost" type="button" id="regenerate-btn">🔄 Regenerate</button>
           <a class="btn btn-warn" href="/">✏️ Back to form</a>
         </div>
         <div class="hint">The review may take up to a minute to generate.</div>
@@ -869,6 +869,38 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
       document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">Request failed: ' + err.message + '</div>';
     }}
   }});
+
+  const regenBtn = document.getElementById('regenerate-btn');
+  if (regenBtn) {{
+    regenBtn.addEventListener('click', async () => {{
+      if (regenBtn.getAttribute('aria-disabled') === 'true') return;
+      regenBtn.setAttribute('aria-disabled', 'true');
+      regenBtn.disabled = true;
+      regenBtn.textContent = '⏳ Regenerating…';
+      // Build a payload with the original form fields only — strip persona_json so the server
+      // generates a fresh persona rather than re-rendering the same one.
+      const payload = new URLSearchParams();
+      new FormData(form).forEach((value, key) => {{
+        if (key !== 'persona_json') payload.append(key, value);
+      }});
+      try {{
+        const response = await fetch('/persona', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
+          body: payload,
+        }});
+        const html = await response.text();
+        document.open();
+        document.write(html);
+        document.close();
+      }} catch (err) {{
+        regenBtn.removeAttribute('aria-disabled');
+        regenBtn.disabled = false;
+        regenBtn.textContent = '🔄 Regenerate';
+        alert('Regenerate failed: ' + err.message);
+      }}
+    }});
+  }}
 }})();
 </script>
 {AUTO_RECONNECT_SCRIPT}
