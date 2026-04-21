@@ -1,0 +1,232 @@
+{
+  "language": "python",
+  "fileCount": 22,
+  "files": [
+    "scripts/watch_and_serve.py",
+    "src/personalens/__init__.py",
+    "src/personalens/__main__.py",
+    "src/personalens/agent.py",
+    "src/personalens/cli.py",
+    "src/personalens/diagnostics.py",
+    "src/personalens/gemini.py",
+    "src/personalens/interactive.py",
+    "src/personalens/markdown_report.py",
+    "src/personalens/models.py",
+    "src/personalens/service.py",
+    "src/personalens/skill_helper.py",
+    "src/personalens/slack_bridge.py",
+    "src/personalens/slack_server.py",
+    "src/personalens/webapp.py",
+    "src/personalens/webpage.py",
+    "tests/test_diagnostics.py",
+    "tests/test_gemini.py",
+    "tests/test_service.py",
+    "tests/test_slack_bridge.py",
+    "tests/test_slack_server.py",
+    "tests/test_webpage.py"
+  ],
+  "imports": {
+    "scripts/watch_and_serve.py": [],
+    "src/personalens/__init__.py": [],
+    "src/personalens/__main__.py": [
+      "src/personalens/cli.py",
+      "src/personalens/interactive.py",
+      "src/personalens/webapp.py"
+    ],
+    "src/personalens/agent.py": [
+      "src/personalens/models.py"
+    ],
+    "src/personalens/cli.py": [
+      "src/personalens/agent.py",
+      "src/personalens/diagnostics.py",
+      "src/personalens/gemini.py",
+      "src/personalens/models.py",
+      "src/personalens/service.py",
+      "src/personalens/slack_server.py"
+    ],
+    "src/personalens/diagnostics.py": [],
+    "src/personalens/gemini.py": [],
+    "src/personalens/interactive.py": [
+      "src/personalens/diagnostics.py",
+      "src/personalens/markdown_report.py",
+      "src/personalens/service.py"
+    ],
+    "src/personalens/markdown_report.py": [],
+    "src/personalens/models.py": [],
+    "src/personalens/service.py": [
+      "src/personalens/agent.py",
+      "src/personalens/gemini.py",
+      "src/personalens/models.py",
+      "src/personalens/webpage.py"
+    ],
+    "src/personalens/skill_helper.py": [
+      "src/personalens/markdown_report.py",
+      "src/personalens/service.py"
+    ],
+    "src/personalens/slack_bridge.py": [],
+    "src/personalens/slack_server.py": [
+      "src/personalens/diagnostics.py",
+      "src/personalens/gemini.py",
+      "src/personalens/models.py",
+      "src/personalens/service.py",
+      "src/personalens/slack_bridge.py"
+    ],
+    "src/personalens/webapp.py": [
+      "src/personalens/diagnostics.py",
+      "src/personalens/gemini.py",
+      "src/personalens/models.py",
+      "src/personalens/service.py"
+    ],
+    "src/personalens/webpage.py": [],
+    "tests/test_diagnostics.py": [
+      "src/personalens/diagnostics.py"
+    ],
+    "tests/test_gemini.py": [
+      "src/personalens/gemini.py"
+    ],
+    "tests/test_service.py": [
+      "src/personalens/gemini.py",
+      "src/personalens/service.py"
+    ],
+    "tests/test_slack_bridge.py": [
+      "src/personalens/slack_bridge.py"
+    ],
+    "tests/test_slack_server.py": [
+      "src/personalens/slack_server.py"
+    ],
+    "tests/test_webpage.py": [
+      "src/personalens/webpage.py"
+    ]
+  },
+  "externalImports": {
+    "scripts/watch_and_serve.py": [
+      "__future__",
+      "os",
+      "pathlib",
+      "signal",
+      "subprocess",
+      "sys",
+      "time"
+    ],
+    "src/personalens/__main__.py": [
+      "sys"
+    ],
+    "src/personalens/agent.py": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "pathlib",
+      "textwrap"
+    ],
+    "src/personalens/cli.py": [
+      "__future__",
+      "argparse",
+      "json",
+      "os",
+      "pathlib",
+      "sys"
+    ],
+    "src/personalens/diagnostics.py": [
+      "__future__"
+    ],
+    "src/personalens/gemini.py": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "os",
+      "pathlib",
+      "urllib"
+    ],
+    "src/personalens/interactive.py": [
+      "__future__",
+      "argparse",
+      "datetime",
+      "json",
+      "pathlib",
+      "sys",
+      "urllib"
+    ],
+    "src/personalens/markdown_report.py": [
+      "__future__",
+      "datetime",
+      "typing"
+    ],
+    "src/personalens/models.py": [
+      "__future__",
+      "dataclasses",
+      "urllib"
+    ],
+    "src/personalens/service.py": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "pathlib"
+    ],
+    "src/personalens/skill_helper.py": [
+      "__future__",
+      "datetime",
+      "json",
+      "pathlib",
+      "sys"
+    ],
+    "src/personalens/slack_bridge.py": [
+      "__future__",
+      "dataclasses",
+      "hashlib",
+      "hmac",
+      "re",
+      "time",
+      "urllib"
+    ],
+    "src/personalens/slack_server.py": [
+      "__future__",
+      "dataclasses",
+      "http",
+      "json",
+      "pathlib",
+      "threading",
+      "time",
+      "urllib"
+    ],
+    "src/personalens/webapp.py": [
+      "__future__",
+      "html",
+      "http",
+      "json",
+      "pathlib",
+      "traceback",
+      "urllib"
+    ],
+    "src/personalens/webpage.py": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "ipaddress",
+      "re",
+      "socket",
+      "urllib"
+    ],
+    "tests/test_diagnostics.py": [
+      "unittest"
+    ],
+    "tests/test_gemini.py": [
+      "json",
+      "unittest"
+    ],
+    "tests/test_service.py": [
+      "unittest"
+    ],
+    "tests/test_slack_bridge.py": [
+      "hashlib",
+      "hmac",
+      "time",
+      "unittest"
+    ],
+    "tests/test_slack_server.py": [
+      "unittest"
+    ],
+    "tests/test_webpage.py": [
+      "unittest"
+    ]
+  }
+}
