@@ -33,10 +33,10 @@
     }
   },
   "createdAt": "2026-04-21T01:18:37Z",
-  "updatedAt": "2026-04-21T04:35:55Z",
+  "updatedAt": "2026-04-21T06:38:02Z",
   "evaluationMode": "agent-eval",
   "agentEval": {
-    "currentIteration": 1,
+    "currentIteration": 2,
     "maxIterations": 5,
     "count": 3,
     "roster": [
@@ -44,7 +44,7 @@
       "prompt_pipeline",
       "web_ux_quality"
     ],
-    "aggregateScore": 3.2117,
+    "aggregateScore": 3.5392,
     "targetScore": 4.067,
     "evaluatorTargets": {
       "review_quality": 4.0,
@@ -52,11 +52,12 @@
       "web_ux_quality": 4.2
     },
     "baselineScore": 2.665,
-    "bestScore": 3.2117,
-    "bestIteration": 1,
+    "bestScore": 3.5392,
+    "bestIteration": 2,
     "scoreHistory": [
       2.665,
-      3.2117
+      3.2117,
+      3.5392
     ]
   }
 }

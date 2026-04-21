@@ -191,3 +191,54 @@ Same six as v0, unchanged in severity:
 - Expect fixer to start picking off the quick accessibility wins first. If none land by iter 2, flag as a delivery risk — we have 3 iterations left and the target was 4.2.
 - Confidence pill contrast (L669) will become active under visual_language — bump to priority_fixes if still unfixed.
 - Breakpoint rationale (860/768/720 with no content basis) will become active under responsive_layout — same rule.
+
+---
+
+## Iteration 2 Observations (2026-04-20)
+
+**Diff scope this iter:** src/personalens/webapp.py only — two surgical additions.
+
+**Changes landed (verified via Read + Grep):**
+- File grew 1098 → 1127 lines (+29, matches the diff exactly).
+- Block A (L450-455, inside showPersonaLoading's inline `<style>`): `@keyframes spin` now paired with `@media (prefers-reduced-motion: reduce) { .spin-disc, [style*="spin"] { animation: none !important; } }`. The `[style*="spin"]` attribute selector is the clever half — the spinner disc on L445 uses an inline `style="…animation:spin 1s linear infinite…"` attribute, so the pattern-match reaches it. `.spin-disc` is defensive (no element currently has that class).
+- Block B (L1085-1108, appended to skeleton_css just after the last `@keyframes`): catches the three skeleton keyframes (skel-shimmer, skel-fade-in, skel-dot-anim) via an explicit class list (body, hero h1, verdict, fi-item, sc-label/num/reason, cf strong/detail/action/stage/pri, imp strong/meta, oq, conf, skel-dot, sc-fill) PLUS pattern-matchers `[class*="shimmer"]` and `[class*="skel-"]`. The pattern-matchers are a robust fallback that will catch future skeleton class names too.
+- Verified via grep: prefers-reduced-motion → 2 matches (was 0), `@keyframes` → 4 total across L451, L965, L969, L1081 — all now covered.
+
+**Changes NOT landed (carry-forward blockers):**
+- visibilitychange → 0 matches. `location.reload()` → 2 matches at L49 (poller recovery) and L834 (Regenerate button). AUTO_RECONNECT_SCRIPT untouched.
+- `<main>` / `<header>` / `<nav>` / `<footer>` → 0 matches.
+- role="alert" / role="status" / aria-live / aria-pressed → 0 matches.
+- render_persona_card and render_result remain monolingual EN: `data-ko` → still only 25 matches, all within render_form (L353-L412). `<html lang="en">` still hardcoded at L593 and L739.
+- Required-field `*` indicator → 0 matches. aria-busy on submit → 0 matches.
+
+### Scores (iteration 2)
+
+| Criterion | v0 | v1 | v2 | Δ(v1→v2) | Weight |
+|---|---|---|---|---|---|
+| form_ux_flow | 3.5 | 3.5 | 3.5 | 0 | 0.22 |
+| loading_feedback | 3.0 | 3.0 | 3.5 | **+0.5** | 0.18 |
+| visual_language | 4.0 | 4.0 | 4.0 | 0 | 0.15 |
+| responsive_layout | 3.5 | 3.5 | 3.5 | 0 | 0.12 |
+| accessibility | 3.0 | 3.0 | 3.0 | 0 | 0.18 |
+| i18n_bilingual | 2.5 | 2.5 | 2.5 | 0 | 0.08 |
+| frontend_code_quality | 3.5 | 3.5 | 3.5 | 0 | 0.07 |
+| **Aggregate** | 3.315 | 3.315 | **3.405** | **+0.090** | 1.00 |
+
+The reduced-motion fix cleanly addresses WCAG SC 2.3.3 and is worth a +0.5 on loading_feedback. Accessibility gets a partial-credit mental bump (reduced-motion IS an accessibility concern) but remains at 3.0 because the criterion is dominated by the unresolved high-severity items (lang, landmarks, aria-live, aria-pressed, confidence contrast). The keyframe fix alone doesn't cross the next threshold.
+
+### Target trajectory analysis
+
+- Baseline (iter 0): 3.315. Target: 4.2. Gap: +0.885.
+- After iter 2: 3.405. Remaining gap: +0.795. Budget: 3 iterations.
+- Required average per iter: +0.265. Landable in a single good iteration if the fixer bundles: bilingual propagation (lifts accessibility ~3.0→4.0 = +0.18; lifts i18n ~2.5→4.0 = +0.12; total +0.30) + semantic landmarks + aria-live (lifts accessibility further) + Regenerate POST fix (lifts form_ux_flow +0.11) + visibilitychange/soft-reload (lifts loading_feedback +0.09).
+- Verdict: still achievable but now requires multi-item iterations, not one-change-per-iter. Flag for meta-observer: pace is slow.
+
+### Carry-forward priority fixes for iter 3+
+
+1. (accessibility, high) Bilingual propagation into render_persona_card + render_result. Highest leverage: single change hits 2 criteria.
+2. (accessibility, high) Semantic landmarks + role="alert"/aria-live + aria-pressed on lang toggle.
+3. (form_ux_flow, high) Regenerate button re-POST to /persona (still broken user-facing functionality).
+4. (form_ux_flow, medium) Required-field `*` indicator + aria-busy on submit.
+5. (loading_feedback, medium) visibilitychange-aware polling + soft recovery banner + progressive phase text.
+6. (visual_language, medium) Confidence pill contrast (L669) + rem-not-px base font-size (L601).
+7. (responsive_layout, low) Rationalize 860/768/720 breakpoint stack into a mobile-first token system.

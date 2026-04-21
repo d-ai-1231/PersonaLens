@@ -1,0 +1,54 @@
+{
+  "evaluator_id": "review_quality",
+  "iteration": "2",
+  "trigger": "score_change",
+  "validations": [
+    {
+      "criterion": "evidence_grounding",
+      "evaluator_score": 4.25,
+      "previous_score": 3.25,
+      "delta": 1.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Multi-Layered Framework for LLM Hallucination Mitigation (MDPI, 2025) — three-layer reference architecture: input governance, evidence-grounded generation, post-response verification",
+        "Fix LLM Hallucination System Architecture 2026 — AI Q&A Hub: post-response filter as belt-and-braces defense alongside prompt-level rules",
+        "AWS Bedrock Guardrails — Contextual Grounding Check: confidence thresholds for filtering hallucinated claims against source context",
+        "MachineLearningMastery — 5 Techniques to Detect LLM Hallucinations: RAG with statistical validation achieves 97% detection; grounding reduces hallucinations 30-50%",
+        "EdinburghNLP awesome-hallucination-detection: n-gram/trigram overlap methods used to detect training-data novelty as hallucination signal"
+      ],
+      "note": "The evaluator credits gemini.py _check_evidence_grounding (3-word trigram window against webpage_context), _check_competitor_leak (grammatical title-case regex + whitelist), structured Retry Note with top-3 issues, and service.py threading of webpage_context and brief.competitors into run_review. External evidence strongly confirms all four mechanisms. The multi-layer post-response filter pattern is documented best practice (MDPI multi-layer framework, AWS Bedrock contextual grounding, AI Q&A Hub). The 3-gram window approach is consistent with n-gram novelty detection literature. The unobservability escape hatch (_UNOBSERVABLE_PHRASES) is consistent with JS-dynamic-content warnings in production RAG pipelines. Residual gaps flagged by the evaluator (strengths not checked, final-attempt accept path soft risk, bag-of-trigrams vs. quote-preserving check) are accurate and proportionate — they justify the 0.75 gap to 5.0. Score increase from 3.25 to 4.25 is well-supported."
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "evaluator_score": 4.0,
+      "previous_score": 3.0,
+      "delta": 1.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Medium — On Persona Prompting (stunspot, Mar 2026): voice is the most important and most frequently overlooked section of a persona; specific expression is high-salience data for LLMs",
+        "Personas.Live Prompt Library 2026: prompts that explicitly reinforce voice anchors near the generation zone reduce generic/slop output",
+        "arxiv 2503.17662 — Enhancing Persona Consistency with Persona-Aware Contrastive Learning: prompt-level reinforcement of persona identity near generation improves consistency",
+        "arxiv 2511.00222 — Consistently Simulating Human Personas with Multi-Turn RL: voice anchor reinforcement reduces persona inconsistency by over 55%",
+        "NVIDIA PersonaPlex: voice anchor integration in system prompts improves persona fidelity in generation"
+      ],
+      "note": "The evaluator credits agent.py:216-221 Voice Check block immediately before Execution Instructions, and agent.py:261 Reflection Loop voice-audit bullet — both implementing strategy rq-local-007 (voice reminder in the generation-zone token window). External research strongly confirms this approach: the Medium persona prompting article identifies voice as high-salience data that must be placed near generation; the RL consistency paper shows 55%+ reduction in persona drift from prompt-level reinforcement. The three residual gaps cited (voice check not covering review_summary fields; no code-level pronoun audit; generic fallback anchors in service.py:119-134) are proportionate and accurate. Score increase from 3.0 to 4.0 is well-supported."
+    },
+    {
+      "criterion": "validation_semantic_coverage",
+      "evaluator_score": 2.75,
+      "previous_score": 2.0,
+      "delta": 0.75,
+      "verdict": "evidence_found",
+      "sources": [
+        "Collin Wilkins — LLM Structured Outputs: Schema Validation for Real Pipelines (2026): constrained decoding guarantees syntax, not semantic correctness; custom validators required for semantic floor",
+        "TianPan — Beyond JSON Mode: field ordering affects chain-of-thought; business logic validation catches what JSON Schema cannot",
+        "deepfounder.ai — Structured Outputs in 2026: native structured output does not prevent semantic errors; always validate with Pydantic/Zod even with provider guarantees",
+        "Evidently AI — LLM-as-a-Judge guide 2026: layering deterministic metrics for structural requirements with semantic checks is the production standard",
+        "Monte Carlo — LLM-as-Judge best practices: partial failure handling — evaluation must handle partial passes gracefully with retries and circuit breakers"
+      ],
+      "note": "The evaluator scores this criterion +0.75, crediting the semantic post-checks (_check_evidence_grounding + _check_competitor_leak) as a partial per-item semantic floor for two failure modes, while correctly noting that the structural validate_review_output is still unchanged (no per-finding FINDING_REQUIRED field check, no journey_stage enum, no priority enum backstop). This is a deferred criterion so the score rise from indirect gains is appropriate. The 2026 structured output literature unanimously confirms: schema conformance is necessary but not sufficient; custom semantic validators are required for production quality. The evaluator's note that semantic post-checks 'functionally act as a partial per-item semantic floor' is consistent with the partial-failure-handling pattern documented in Evidently AI and Monte Carlo. The 0.75 lift for indirect gains is proportionate — the four remaining gaps cited are accurate and justify the 2.25-point distance from 5.0. Score increase from 2.0 to 2.75 is well-supported."
+    }
+  ],
+  "overall_verdict": "confirmed",
+  "actions": []
+}

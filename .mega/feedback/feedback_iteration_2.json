@@ -1,0 +1,448 @@
+{
+  "iteration": 2,
+  "evaluationMode": "agent-eval",
+  "timestamp": "2026-04-20T00:00:00Z",
+  "performance": {
+    "aggregate_score": 3.5392,
+    "delta": 0.3275,
+    "delta_vs_best": 0.3275,
+    "delta_vs_v0": 0.8742,
+    "evaluator_individual_scores": {
+      "review_quality": 3.725,
+      "prompt_pipeline": 3.4875,
+      "web_ux_quality": 3.405
+    }
+  },
+  "evaluator_feedback": [
+    {
+      "evaluator_id": "review_quality",
+      "aggregate_score": 3.725,
+      "target_score": 4.0,
+      "previous_score": 3.06,
+      "delta": 0.665,
+      "feedback": "Iteration 2 executed exactly the roadmap from iter-1 memory: (1) voice carry-through near Execution Instructions + Reflection-Loop voice-audit bullet (agent.py), and (2) threaded webpage_context + allowed_competitors through run_review with _check_evidence_grounding and _check_competitor_leak post-filters in gemini.py, plus service.py wiring. Both are well-engineered: the grounding check has a proper unobservability escape hatch, the competitor leak detector is grammatical (not hardcoded brand list) with a thoughtful _PACKET_SAFELIST to prevent scaffolding bleed-through, and the retry hint now carries top-3 specific issues instead of 'structurally empty'. The final-attempt accept path is a defensible starvation-vs-strictness tradeoff. Aggregate should move from 3.06 → ~3.73 (well on track for 4.0 by iter 3-4). Top remaining lifts in priority order: (a) per-dimension 1/3/5 anchors for the 8 scoring dimensions (strategy rq-local-002, pure prose in agent.py — highest ROI remaining), (b) journey_stage enum in review-output-schema.json (trivial, rq-local-005), (c) business-goal token-overlap check in validate_review_output (rq-local-003 partial, cheap), (d) persona_voice / finding-field non-empty checks inside validate_review_output to formalize what the post-filter already implies.",
+      "priority_fixes": [
+        {
+          "criterion": "scoring_rubric_calibration",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/agent.py"
+          ],
+          "suggestion": "Add a '## Scoring Rubric' block to build_review_packet (after '## Scoring Dimensions', before '## Voice Check'). For each of the 8 dimensions (task_clarity, task_success, effort_load, trust_confidence, value_communication, error_recovery, accessibility, emotional_fit), provide a one-line definition of what the dimension measures from the persona's perspective and concrete anchors for score 1 (failing), 3 (adequate), and 5 (excellent) — tied to the persona's core_journey and business_goal. This resolves central-tendency collapse by converting 'what feels right' into 'which row matches the evidence I cited in the reason field'. Also enforce reason-before-score ordering in the schema template so chain-of-thought precedes the numeric commit (the schema currently emits reason and score together; make the LLM write reason first)."
+        },
+        {
+          "criterion": "evidence_grounding",
+          "severity": "medium",
+          "target_files": [
+            "src/personalens/gemini.py"
+          ],
+          "suggestion": "Extend _check_evidence_grounding to also cover strengths[].evidence (currently only findings are scanned) and scores[dim].reason if the reason quotes specific copy. Optionally widen the window check from a strict trigram to a 3-gram OR a quoted-span match (detect content between straight/curly quotes and require that the quoted span itself exists in webpage_context) — this catches the common hallucination pattern 'the hero says \"Sign up free\"' where the LLM fabricates a direct quote. Add a one-line log warning (stderr or raw_output sidecar) when the final-attempt accept path ships with unresolved semantic_issues so reviewers can audit the soft-accept cases."
+        },
+        {
+          "criterion": "business_goal_anchoring",
+          "severity": "medium",
+          "target_files": [
+            "src/personalens/gemini.py",
+            "src/personalens/service.py"
+          ],
+          "suggestion": "Add a token-overlap check in run_review: for each entry in prioritized_improvements.quick_wins / structural_fixes / validation_experiments, verify that expected_business_outcome shares at least one content token with brief.business_goal (exclude stopwords: the/a/an/to/and/or/of/in/for/with/on). Thread brief.business_goal into run_review alongside the existing webpage_context/allowed_competitors kwargs. Surface token-overlap failures through the same semantic_issues retry channel so the model receives specific feedback ('quick_win #2 expected_business_outcome does not mention the stated business goal')."
+        },
+        {
+          "criterion": "persona_grounding_and_voice",
+          "severity": "low",
+          "target_files": [
+            "src/personalens/agent.py",
+            "src/personalens/gemini.py"
+          ],
+          "suggestion": "Two lightweight follow-ups: (1) extend the '## Voice Check' block to also cover review_summary.first_impression and review_summary.why_it_matters — these are first-person-heavy fields currently outside the voice reinforcement; (2) add a tiny code-level voice probe that checks each finding.persona_voice for at least one of persona.voice[:5] (case-insensitive substring), surfacing failures as semantic_issues. Optional: replace the generic service.py:119-134 fallback persona voice anchors with a 'FALLBACK PERSONA — voice unavailable' marker so downstream reviewers aren't misled by synthetic-but-plausible anchors."
+        },
+        {
+          "criterion": "finding_severity_discipline",
+          "severity": "low",
+          "target_files": [
+            "src/personalens/gemini.py"
+          ],
+          "suggestion": "Add a lightweight blocker-cap enforcement in the semantic post-check: if len([f for f in findings if f.priority=='Blocker']) > max(1, len(findings)//5), raise a semantic_issue asking the model to downgrade the weakest Blockers. Also spot-check that each finding's impact_on_user AND impact_on_business are both populated strings (not empty, not one is a copy of the other) — this formalizes the iter-1 Nielsen-triad rubric at code level without requiring triad parsing."
+        }
+      ]
+    },
+    {
+      "evaluator_id": "prompt_pipeline",
+      "aggregate_score": 3.4875,
+      "target_score": 4.0,
+      "previous_score": 3.26,
+      "delta": 0.2275,
+      "feedback": "Iter 2 is a narrow, surgical improvement. The post-response semantic validation (evidence grounding + competitor leak detection) is the headline change and it's well engineered: it closes a real reliability gap — structurally valid but semantically ungrounded or leak-prone responses now loop back with targeted retry notes, and the last-attempt bypass prevents infinite-loop starvation. Combined with the threaded webpage_context + allowed_competitors in service.py, this raises retry_reliability from 4.5 to 4.75. The Voice Check / voice audit additions in agent.py are real quality content at modest token cost. HOWEVER, none of the four priority_fixes from iter 1's memo (embedded-schema deletion, duplicate webpage fetch, competitor-rule consolidation, schema score-field reorder) were addressed — these remain the highest-leverage remaining wins. The single change that would most move aggregate score is still: delete the JSON schema block at agent.py:266-268 (already attached via responseSchema in 2/3 builders) and replace with a one-line key list. This is ~500-800 tokens/call reclaimed, removes a Google-documented anti-pattern, and lifts both llm_configuration (→4.0+) and token_efficiency. Second-highest-leverage: add @functools.lru_cache to fetch_webpage_context to eliminate the duplicate crawl. Third: fix review-output-schema.json to {reason, score} order — a one-line edit with measurable CoT benefit.",
+      "priority_fixes": [
+        {
+          "criterion": "llm_configuration",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/agent.py"
+          ],
+          "suggestion": "Delete the embedded JSON schema block at agent.py:265-268 (`## Required Output Schema` + ```json + json.dumps(schema) + ```). Replace with a one-line reference: `Return JSON with these top-level keys: review_summary, persona_card, scores, strengths, findings, prioritized_improvements, open_questions.` The schema is already attached as responseSchema in build_request_inline_prompt (gemini.py:430) and build_request_plain_text_fallback (gemini.py:462). Google's controlled-generation docs explicitly warn that duplicating the schema in both the prompt and responseSchema 'might lead to lower-quality generated output.' This change alone reclaims ~500-800 tokens per call and removes a documented anti-pattern. For the grounded builder (which can't set responseSchema alongside google_search), the one-line key list is sufficient structure guidance given responseMimeType=application/json is already set."
+        },
+        {
+          "criterion": "pipeline_structure",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/webpage.py",
+            "src/personalens/service.py"
+          ],
+          "suggestion": "Eliminate the duplicate fetch_webpage_context call across persona + review stages. Cheapest fix: decorate fetch_webpage_context at webpage.py:113 with `@functools.lru_cache(maxsize=128)` — per-process memoization by URL makes the second call a no-op. Cleaner fix: in service.py, call fetch_webpage_context once in generate_persona_from_form (service.py:90) and thread that crawl into build_packet_for_brief via a new optional `webpage_context` parameter so build_packet_for_brief skips re-crawling. Either change cuts one full 8-page crawl per end-to-end request and removes ~4.4k duplicate input tokens on the persona stage."
+        },
+        {
+          "criterion": "prompt_quality",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/agent.py",
+            "src/personalens/gemini.py",
+            "review-output-schema.json"
+          ],
+          "suggestion": "Three small consolidations: (1) Reorder `review-output-schema.json` score fields from `{score, reason}` to `{reason, score}` at lines 24-31 — this is a one-file edit that materially improves CoT for the 8 score fields (reasoning-before-commit is a documented best practice). (2) Delete the SYSTEM_PROMPT re-embedding at agent.py:169-170 — it's already in systemInstruction (gemini.py:397-405) for the grounded builder, and the inline/fallback builders have their own terse preambles; reduces prompt duplication and improves caching prefix stability. (3) Consolidate the competitor rule to ONE location (SYSTEM_PROMPT at agent.py:46-52) — delete restatements at agent.py:195 (Known Competitors header), gemini.py:472 (plain-text fallback), and gemini.py:521-526 (enrich_persona). Repetition does not strengthen instruction following; it dilutes attention."
+        },
+        {
+          "criterion": "retry_reliability",
+          "severity": "low",
+          "target_files": [
+            "src/personalens/gemini.py"
+          ],
+          "suggestion": "Two small polish items only — the retry loop is otherwise near best-practice. (1) On semantic-validation failure, rotate to a different REQUEST_BUILDER for the next attempt rather than reusing the same builder_idx (gemini.py:225) — the three builder shapes have different structural characteristics (e.g., builder 1 runs google_search which can pull in unapproved names causing competitor_leak flags; switching to builder 2 on a leak would be smarter than re-running builder 1 with a warning). (2) Extend `_parse_retry_after` at gemini.py:54-60 to also parse HTTP-date form (RFC 7231); `float(value)` only handles the delta-seconds variant. Both are incremental; retry_reliability is already 4.75."
+        }
+      ]
+    },
+    {
+      "evaluator_id": "web_ux_quality",
+      "aggregate_score": 3.405,
+      "target_score": 4.2,
+      "previous_score": 3.315,
+      "delta": 0.09,
+      "feedback": "Iteration 2 delivers one focused, correct fix: prefers-reduced-motion fallbacks now cover every keyframe in the app (WCAG SC 2.3.3). The attribute selector `[style*=\"spin\"]` is a clever way to reach the inline spinner animation without refactoring the inline-style. However, five out of six priority fixes from iter 1 are still open after two iterations: (1) bilingual propagation into render_persona_card/render_result is the single largest remaining WCAG+UX win and affects both accessibility and i18n_bilingual simultaneously; (2) Regenerate button still calls `location.reload()` instead of re-POSTing /persona — this is user-facing broken functionality; (3) the health poller still hammers /health every 1.5s on hidden tabs and hard-reloads on recovery; (4) semantic landmarks and aria-live regions are still absent; (5) the required-field `*` indicator is still missing. With 3 iterations left to hit the 4.2 target, the fixer should bundle multiple quick accessibility wins per iteration rather than shipping one keyframe guard per cycle.",
+      "priority_fixes": [
+        {
+          "criterion": "accessibility",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "Propagate bilingual support into render_persona_card (L719-866) and render_result (L482-716): (a) replace static `<html lang=\"en\">` at L593 and L739 with the active language read from `localStorage['qra-lang']`; (b) add data-en/data-ko attributes to all user-facing strings on those two templates (step indicator, button labels, section headings, 'Run another review', etc.); (c) duplicate the on-load setLang() block so the preference is applied on persona and result pages too. Fixes WCAG SC 3.1.1 / 3.1.2 and unblocks i18n_bilingual simultaneously."
+        },
+        {
+          "criterion": "accessibility",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "Add semantic landmarks to all three templates: wrap the form body in `<main>` (inside render_form, around L361), wrap the persona card in `<main role=\"main\">` (render_persona_card), wrap the result in `<main>` with a `<header>` for the hero and `<section aria-labelledby>` per review section. Add `role=\"status\" aria-live=\"polite\"` to the AUTO_RECONNECT_SCRIPT banner (L24-39) and `role=\"alert\"` to the error div at L185. Add `aria-pressed` to the two lang-switch buttons at L355-356, toggled inside setLang(). Fixes WCAG SC 1.3.1 and 4.1.3."
+        },
+        {
+          "criterion": "form_ux_flow",
+          "severity": "high",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "Fix the Regenerate button at L834. Replace `onclick=\"location.reload()\"` with an addEventListener handler that POSTs the stashed original form fields (already present as hidden inputs L824-833) back to /persona with a fresh nonce, shows the skeleton, and swaps in the new persona card. Currently the button is a no-op from the user's perspective. Also add visible `*` required indicators to the 5 required inputs (service_name, service_url, service_type, core_journey, persona_description) and expose aria-busy+disabled on the submit button during the /persona round-trip."
+        },
+        {
+          "criterion": "loading_feedback",
+          "severity": "medium",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "In AUTO_RECONNECT_SCRIPT (L18-66), pause the 1.5s /health poller when `document.hidden === true` via a visibilitychange listener, resume on 'visible'. Replace the unconditional `window.location.reload()` on recovery at L49 with a soft recovery: update banner text to 'Reconnected' and aria-live-announce, only force-reload if the server reports a stale session. Also: add progressive phase text to render_skeleton (L1097+) that updates at 0s/5s/15s/30s in both EN and KO, announced via the same `role='status' aria-live='polite'` region."
+        },
+        {
+          "criterion": "visual_language",
+          "severity": "medium",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "Confidence pill at L669 uses `background:{conf_color}18` (~10% alpha) with the same color for text — non-text contrast of the pill edge against the panel is likely below WCAG 1.4.11's 3:1 requirement. Either darken the background alpha (e.g., `{conf_color}33` = 20%) AND verify the text-on-fill contrast, or add a 1px border `border:1px solid {conf_color}` to establish the 3:1 edge. Also convert `body { font-size:14px }` at L601 to `1rem` (or `0.875rem` if truly 14px is desired but expressed in rem) for user font-scaling."
+        },
+        {
+          "criterion": "responsive_layout",
+          "severity": "low",
+          "target_files": [
+            "src/personalens/webapp.py"
+          ],
+          "suggestion": "Rationalize the three breakpoints (860px L342, 768px L656, 720px L772) into a single token system. Either adopt a unified `min-width` mobile-first approach — default single-column, `@media (min-width: 640px)` two-column, `@media (min-width: 1024px)` three-column — or document a content-driven reason for each existing value. Current desktop-first max-width queries with three different thresholds create inconsistent layouts between 720-860px viewport widths."
+        }
+      ]
+    }
+  ],
+  "prioritized_fixes": [
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "Propagate bilingual support into render_persona_card (L719-866) and render_result (L482-716): (a) replace static `<html lang=\"en\">` at L593 and L739 with the active language read from `localStorage['qra-lang']`; (b) add data-en/data-ko attributes to all user-facing strings on those two templates (step indicator, button labels, section headings, 'Run another review', etc.); (c) duplicate the on-load setLang() block so the preference is applied on persona and result pages too. Fixes WCAG SC 3.1.1 / 3.1.2 and unblocks i18n_bilingual simultaneously.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "e011242bced270f7:e011242bced270f7:e011242bced270f7",
+        "strategy_name": "WCAG Accessibility & Semantic UI Compliance"
+      }
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "Add semantic landmarks to all three templates: wrap the form body in `<main>` (inside render_form, around L361), wrap the persona card in `<main role=\"main\">` (render_persona_card), wrap the result in `<main>` with a `<header>` for the hero and `<section aria-labelledby>` per review section. Add `role=\"status\" aria-live=\"polite\"` to the AUTO_RECONNECT_SCRIPT banner (L24-39) and `role=\"alert\"` to the error div at L185. Add `aria-pressed` to the two lang-switch buttons at L355-356, toggled inside setLang(). Fixes WCAG SC 1.3.1 and 4.1.3.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "e011242bced270f7:e011242bced270f7:e011242bced270f7",
+        "strategy_name": "WCAG Accessibility & Semantic UI Compliance"
+      }
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "Fix the Regenerate button at L834. Replace `onclick=\"location.reload()\"` with an addEventListener handler that POSTs the stashed original form fields (already present as hidden inputs L824-833) back to /persona with a fresh nonce, shows the skeleton, and swaps in the new persona card. Currently the button is a no-op from the user's perspective. Also add visible `*` required indicators to the 5 required inputs (service_name, service_url, service_type, core_journey, persona_description) and expose aria-busy+disabled on the submit button during the /persona round-trip.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "e011242bced270f7:e011242bced270f7:e011242bced270f7",
+        "strategy_name": "WCAG Accessibility & Semantic UI Compliance"
+      }
+    },
+    {
+      "criterion": "llm_configuration",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/agent.py"
+      ],
+      "suggestion": "Delete the embedded JSON schema block at agent.py:265-268 (`## Required Output Schema` + ```json + json.dumps(schema) + ```). Replace with a one-line reference: `Return JSON with these top-level keys: review_summary, persona_card, scores, strengths, findings, prioritized_improvements, open_questions.` The schema is already attached as responseSchema in build_request_inline_prompt (gemini.py:430) and build_request_plain_text_fallback (gemini.py:462). Google's controlled-generation docs explicitly warn that duplicating the schema in both the prompt and responseSchema 'might lead to lower-quality generated output.' This change alone reclaims ~500-800 tokens per call and removes a documented anti-pattern.",
+      "evaluator_origin": "prompt_pipeline",
+      "wisdom_source": {
+        "session_id": "prompt_pipeline",
+        "wisdom_id": "10cf3d1b2b1b4383:10cf3d1b2b1b4383:10cf3d1b2b1b4383",
+        "strategy_name": "Native Structured Output via responseSchema API Attachment"
+      }
+    },
+    {
+      "criterion": "pipeline_structure",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/webpage.py",
+        "src/personalens/service.py"
+      ],
+      "suggestion": "Eliminate the duplicate fetch_webpage_context call across persona + review stages. Cheapest fix: decorate fetch_webpage_context at webpage.py:113 with `@functools.lru_cache(maxsize=128)` — per-process memoization by URL makes the second call a no-op. Cleaner fix: in service.py, call fetch_webpage_context once in generate_persona_from_form (service.py:90) and thread that crawl into build_packet_for_brief via a new optional `webpage_context` parameter so build_packet_for_brief skips re-crawling. Either change cuts one full 8-page crawl per end-to-end request and removes ~4.4k duplicate input tokens on the persona stage.",
+      "evaluator_origin": "prompt_pipeline",
+      "wisdom_source": {
+        "session_id": "prompt_pipeline",
+        "wisdom_id": "d51bf699a25a14f1:d51bf699a25a14f1:d51bf699a25a14f1",
+        "strategy_name": "Cache-Aside Pattern for Persona and Webpage Memoization"
+      }
+    },
+    {
+      "criterion": "prompt_quality",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/agent.py",
+        "src/personalens/gemini.py",
+        "review-output-schema.json"
+      ],
+      "suggestion": "Three small consolidations: (1) Reorder `review-output-schema.json` score fields from `{score, reason}` to `{reason, score}` at lines 24-31 — this is a one-file edit that materially improves CoT for the 8 score fields (reasoning-before-commit is a documented best practice). (2) Delete the SYSTEM_PROMPT re-embedding at agent.py:169-170 — it's already in systemInstruction (gemini.py:397-405) for the grounded builder, and the inline/fallback builders have their own terse preambles; reduces prompt duplication and improves caching prefix stability. (3) Consolidate the competitor rule to ONE location (SYSTEM_PROMPT at agent.py:46-52) — delete restatements at agent.py:195 (Known Competitors header), gemini.py:472 (plain-text fallback), and gemini.py:521-526 (enrich_persona). Repetition does not strengthen instruction following; it dilutes attention.",
+      "evaluator_origin": "prompt_pipeline",
+      "wisdom_source": {
+        "session_id": "prompt_pipeline",
+        "wisdom_id": "f16fac9d3ec5b92d:f16fac9d3ec5b92d:f16fac9d3ec5b92d",
+        "strategy_name": "Prompt Deduplication via Static Block Isolation"
+      }
+    },
+    {
+      "criterion": "scoring_rubric_calibration",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/agent.py"
+      ],
+      "suggestion": "Add a '## Scoring Rubric' block to build_review_packet (after '## Scoring Dimensions', before '## Voice Check'). For each of the 8 dimensions (task_clarity, task_success, effort_load, trust_confidence, value_communication, error_recovery, accessibility, emotional_fit), provide a one-line definition of what the dimension measures from the persona's perspective and concrete anchors for score 1 (failing), 3 (adequate), and 5 (excellent) — tied to the persona's core_journey and business_goal. This resolves central-tendency collapse by converting 'what feels right' into 'which row matches the evidence I cited in the reason field'. Also enforce reason-before-score ordering in the schema template so chain-of-thought precedes the numeric commit.",
+      "evaluator_origin": "review_quality",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-002",
+        "strategy_name": "Per-Score Rubric Anchors for Scoring Dimensions"
+      }
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "medium",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "In AUTO_RECONNECT_SCRIPT (L18-66), pause the 1.5s /health poller when `document.hidden === true` via a visibilitychange listener, resume on 'visible'. Replace the unconditional `window.location.reload()` on recovery at L49 with a soft recovery: update banner text to 'Reconnected' and aria-live-announce, only force-reload if the server reports a stale session. Also: add progressive phase text to render_skeleton (L1097+) that updates at 0s/5s/15s/30s in both EN and KO, announced via the same `role='status' aria-live='polite'` region.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "044c423c8dd59ab0:fffeaa5816aca7ad:044c423c8dd59ab0",
+        "strategy_name": "Skeleton Loading & Perceived Performance"
+      }
+    },
+    {
+      "criterion": "visual_language",
+      "severity": "medium",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "Confidence pill at L669 uses `background:{conf_color}18` (~10% alpha) with the same color for text — non-text contrast of the pill edge against the panel is likely below WCAG 1.4.11's 3:1 requirement. Either darken the background alpha (e.g., `{conf_color}33` = 20%) AND verify the text-on-fill contrast, or add a 1px border `border:1px solid {conf_color}` to establish the 3:1 edge. Also convert `body { font-size:14px }` at L601 to `1rem` (or `0.875rem` if truly 14px is desired but expressed in rem) for user font-scaling.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": null
+    },
+    {
+      "criterion": "evidence_grounding",
+      "severity": "medium",
+      "target_files": [
+        "src/personalens/gemini.py"
+      ],
+      "suggestion": "Extend _check_evidence_grounding to also cover strengths[].evidence (currently only findings are scanned) and scores[dim].reason if the reason quotes specific copy. Optionally widen the window check from a strict trigram to a 3-gram OR a quoted-span match (detect content between straight/curly quotes and require that the quoted span itself exists in webpage_context) — this catches the common hallucination pattern 'the hero says \"Sign up free\"' where the LLM fabricates a direct quote. Add a one-line log warning (stderr or raw_output sidecar) when the final-attempt accept path ships with unresolved semantic_issues so reviewers can audit the soft-accept cases.",
+      "evaluator_origin": "review_quality",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-004",
+        "strategy_name": "Evidence Substring Check via Threaded webpage_context"
+      }
+    },
+    {
+      "criterion": "business_goal_anchoring",
+      "severity": "medium",
+      "target_files": [
+        "src/personalens/gemini.py",
+        "src/personalens/service.py"
+      ],
+      "suggestion": "Add a token-overlap check in run_review: for each entry in prioritized_improvements.quick_wins / structural_fixes / validation_experiments, verify that expected_business_outcome shares at least one content token with brief.business_goal (exclude stopwords: the/a/an/to/and/or/of/in/for/with/on). Thread brief.business_goal into run_review alongside the existing webpage_context/allowed_competitors kwargs. Surface token-overlap failures through the same semantic_issues retry channel so the model receives specific feedback ('quick_win #2 expected_business_outcome does not mention the stated business goal').",
+      "evaluator_origin": "review_quality",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-003",
+        "strategy_name": "Semantic Validator Expansion Beyond Structural Checks"
+      }
+    },
+    {
+      "criterion": "responsive_layout",
+      "severity": "low",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "suggestion": "Rationalize the three breakpoints (860px L342, 768px L656, 720px L772) into a single token system. Either adopt a unified `min-width` mobile-first approach — default single-column, `@media (min-width: 640px)` two-column, `@media (min-width: 1024px)` three-column — or document a content-driven reason for each existing value. Current desktop-first max-width queries with three different thresholds create inconsistent layouts between 720-860px viewport widths.",
+      "evaluator_origin": "web_ux_quality",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "ac8a1059a8fbbe71:12eecc819b32f050:a5844caa2048e128",
+        "strategy_name": "Mobile-First Responsive Design"
+      }
+    },
+    {
+      "criterion": "retry_reliability",
+      "severity": "low",
+      "target_files": [
+        "src/personalens/gemini.py"
+      ],
+      "suggestion": "Two small polish items only — the retry loop is otherwise near best-practice. (1) On semantic-validation failure, rotate to a different REQUEST_BUILDER for the next attempt rather than reusing the same builder_idx (gemini.py:225) — the three builder shapes have different structural characteristics (e.g., builder 1 runs google_search which can pull in unapproved names causing competitor_leak flags; switching to builder 2 on a leak would be smarter than re-running builder 1 with a warning). (2) Extend `_parse_retry_after` at gemini.py:54-60 to also parse HTTP-date form (RFC 7231); `float(value)` only handles the delta-seconds variant. Both are incremental; retry_reliability is already 4.75.",
+      "evaluator_origin": "prompt_pipeline",
+      "wisdom_source": {
+        "session_id": "prompt_pipeline",
+        "wisdom_id": "0c45632938aff2c2:0c45632938aff2c2:0c45632938aff2c2",
+        "strategy_name": "HTTP Status Classification and Exponential Backoff with Jitter"
+      }
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "severity": "low",
+      "target_files": [
+        "src/personalens/agent.py",
+        "src/personalens/gemini.py"
+      ],
+      "suggestion": "Two lightweight follow-ups: (1) extend the '## Voice Check' block to also cover review_summary.first_impression and review_summary.why_it_matters — these are first-person-heavy fields currently outside the voice reinforcement; (2) add a tiny code-level voice probe that checks each finding.persona_voice for at least one of persona.voice[:5] (case-insensitive substring), surfacing failures as semantic_issues. Optional: replace the generic service.py:119-134 fallback persona voice anchors with a 'FALLBACK PERSONA — voice unavailable' marker so downstream reviewers aren't misled by synthetic-but-plausible anchors.",
+      "evaluator_origin": "review_quality",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-007",
+        "strategy_name": "Voice Carry-Through Reinforcement Near Execution Instructions"
+      }
+    },
+    {
+      "criterion": "finding_severity_discipline",
+      "severity": "low",
+      "target_files": [
+        "src/personalens/gemini.py"
+      ],
+      "suggestion": "Add a lightweight blocker-cap enforcement in the semantic post-check: if len([f for f in findings if f.priority=='Blocker']) > max(1, len(findings)//5), raise a semantic_issue asking the model to downgrade the weakest Blockers. Also spot-check that each finding's impact_on_user AND impact_on_business are both populated strings (not empty, not one is a copy of the other) — this formalizes the iter-1 Nielsen-triad rubric at code level without requiring triad parsing.",
+      "evaluator_origin": "review_quality",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-001",
+        "strategy_name": "Behavioral Anchors for Severity Rating Scale"
+      }
+    }
+  ],
+  "strategy": [
+    "iteration 2 gains: evidence_grounding 2.5 → 4.25 (+1.75, webpage_context threading + _check_evidence_grounding + _check_competitor_leak delivered), persona_grounding_and_voice 2.0 → 4.0 (+2.0, voice carry-through + reflection-loop voice audit delivered), retry_reliability 4.5 → 4.75 (+0.25, semantic-failure retry with targeted notes), loading_feedback 3.0 → 3.5 (+0.5, prefers-reduced-motion fallbacks delivered)",
+    "iteration 2 gaps: scoring_rubric_calibration (2.5, no 1/3/5 anchors for 8 dimensions — highest-ROI remaining review_quality lift), embedded schema anti-pattern persists in agent.py (flagged 3× now, ~500-800 tokens/call wasted), duplicate webpage fetch persists (2 full crawls per request), webapp.py bilingual propagation entirely absent (affects accessibility + i18n_bilingual simultaneously), Regenerate button still a no-op (location.reload instead of re-POST)",
+    "iteration 3 priorities: (1) scoring rubric 1/3/5 anchors in agent.py — pure prose, zero structural risk, lifts scoring_rubric_calibration from 2.5 toward 4.0; (2) delete embedded schema from packet — 1-line change, reclaims tokens, lifts llm_configuration; (3) bilingual propagation into render_persona_card + render_result — lifts accessibility from 3.0 and i18n_bilingual from 2.5 simultaneously; (4) Regenerate button re-POST fix — user-facing broken functionality, webapp.py L834; (5) lru_cache on fetch_webpage_context — removes duplicate crawl, lifts pipeline_structure"
+  ],
+  "applied_fixes": [
+    {
+      "id": "iter2-fix1",
+      "tag": "success",
+      "type": "code_fix",
+      "evaluator_origin": "review_quality",
+      "evaluator_criterion": "evidence_grounding",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/gemini.py",
+        "src/personalens/service.py"
+      ],
+      "description": "Threaded webpage_context and brief.competitors through run_review; added _check_evidence_grounding (3-word sliding-window substring match with JS-unobservable escape hatch) and _check_competitor_leak (grammatical multi-word title-case regex with packet-scaffolding safelist and word-boundary context matching). On semantic failure build targeted Retry Note; last attempt bypasses to avoid loop starvation.",
+      "effect": "evidence_grounding 3.25 -> 4.25 (+1.0); validation_semantic_coverage 2.0 -> 2.75 (+0.75). review_quality aggregate 3.06 -> 3.725.",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-006",
+        "strategy_name": "Competitor-Name Post-Filter in run_review"
+      }
+    },
+    {
+      "id": "iter2-fix2",
+      "tag": "success",
+      "type": "prompt_improvement",
+      "evaluator_origin": "review_quality",
+      "evaluator_criterion": "persona_grounding_and_voice",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/agent.py"
+      ],
+      "description": "Inserted '## Voice Check (do not skip)' block immediately before Execution Instructions referencing persona.name and persona.voice[:5]; added 'Voice audit' bullet to Reflection Loop requiring first-person rewriting of auditor-voice sentences.",
+      "effect": "persona_grounding_and_voice 3.0 -> 4.0 (+1.0). Critic confirmed vs arxiv 2511.00222 and Medium stunspot persona-prompting article.",
+      "wisdom_source": {
+        "session_id": "review_quality",
+        "wisdom_id": "rq-local-007",
+        "strategy_name": "Voice Carry-Through Reinforcement Near Execution Instructions"
+      }
+    },
+    {
+      "id": "iter2-fix3",
+      "tag": "success",
+      "type": "code_fix",
+      "evaluator_origin": "web_ux_quality",
+      "evaluator_criterion": "loading_feedback",
+      "severity": "high",
+      "target_files": [
+        "src/personalens/webapp.py"
+      ],
+      "description": "Added @media (prefers-reduced-motion: reduce) fallbacks to both style blocks: the spin keyframe area (~L452) and the skeleton_css block footer (~L1085) covering all four keyframes (spin, skel-shimmer, skel-fade-in, skel-dot-anim) plus [class*='shimmer'] and [class*='skel-'] pattern matchers.",
+      "effect": "loading_feedback 3.0 -> 3.5 (+0.5). WCAG SC 2.3.3 compliant. accessibility held flat because the dominant items (landmarks, aria, lang propagation) remain open.",
+      "wisdom_source": {
+        "session_id": "web_ux_quality",
+        "wisdom_id": "ac8a1059a8fbbe71",
+        "strategy_name": "Reduced Motion & Cross-Device Testing"
+      }
+    }
+  ]
+}

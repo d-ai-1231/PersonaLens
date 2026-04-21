@@ -95,3 +95,54 @@ Third: **consolidate competitor rule** to SYSTEM_PROMPT only (delete 3 restateme
 Fourth (polish): Retry-After HTTP-date form support; decouple builder-switch from API-layer attempt index. +0.25 on retry_reliability.
 
 Watch for: when schema is removed from prompt, confirm all 3 builders still produce valid JSON (builder 1 must work without responseSchema since google_search blocks it — rely on responseMimeType + short key list). If builder 1 starts failing more often, consider dropping google_search from the default retry path and using it only as a tool the model can invoke explicitly.
+
+---
+
+## Iter 2 Observations & Results (phase: mid)
+
+### What got fixed in iter 2
+1. **Post-response semantic validation added (gemini.py:70-203, 281-302)** — two new validators run AFTER parse/structural validation:
+   - `_check_evidence_grounding`: scans findings[].evidence, passes if any 3-word window appears in webpage_context (normalized) OR the evidence admits it's not observable (JS-rendered/dynamic/behind login). Gracefully disables when webpage_context is missing.
+   - `_check_competitor_leak`: scans findings/strengths for multi-word title-cased tokens not in allowed_competitors and not in webpage_context. Packet-scaffolding safelist (section headers, enum values) prevents false positives from quoted structure. Gracefully disables when both references empty.
+   - Semantic failures are injected into next retry's Retry Note — correct validation-failure-retry pattern.
+   - Last-attempt bypass (gemini.py:296-297) accepts rather than starving the loop when a term genuinely can't be anchored.
+   - RESULT: retry_reliability 4.5 → 4.75.
+2. **webpage_context + allowed_competitors threaded through service.py (service.py:32, 45-52)** — previously `_webpage_context` was discarded; now feeds the semantic validators. Makes iter 2's Gemini-side validation actually functional.
+3. **Voice Check section + voice audit reflection bullet (agent.py:216-222, 261)** — adds explicit persona-voice audit instruction. Real quality content at ~6 lines prompt cost. prompt_quality 2.75 → 3.0.
+
+### What was NOT addressed in iter 2 (all iter 1 priority_fixes carry forward)
+- Schema still embedded in packet markdown (agent.py:266-268) AND attached as responseSchema.
+- review-output-schema.json still `{score, reason}` order (lines 24-31) — reasoning-before-commit still violated.
+- Duplicate fetch_webpage_context across persona (service.py:90) + review (service.py:18) stages — unchanged.
+- No persona cache by (service, type, description) hash.
+- Both stages hardcoded gemini-2.5-pro (service.py:17, 86, 140).
+- SYSTEM_PROMPT still duplicated in systemInstruction AND packet markdown.
+- Competitor rule now in 4 locations (SYSTEM_PROMPT + Known Competitors header + plain-text fallback + enrich_persona).
+- 3 divergent builder shapes still retained.
+- EVALUATE-not-EXPAND still 3×.
+
+### Iter 2 Scores
+- prompt_quality: 3.0 (+0.25 from Voice Check)
+- llm_configuration: 3.5 (unchanged)
+- retry_reliability: 4.75 (+0.25 from semantic validation layer)
+- pipeline_structure: 3.0 (+0.5 from threading webpage_context — makes downstream validators functional, even though duplicate fetch persists)
+- token_efficiency: 2.5 (unchanged)
+- aggregate: 3.4875 (+0.23)
+
+### Lessons Learned
+- Post-parse semantic validation with retry-note injection is a high-ROI reliability pattern even without touching the prompt. Gracefully-degrading validators (disable when reference data missing) prevent the pattern from becoming a liability offline.
+- Iter 2 was a narrow, surgical change — 2 small quality additions and 1 real reliability improvement. The priority_fixes backlog from iter 1 (schema duplication, duplicate fetch, competitor consolidation, schema field reorder) was NOT touched. Need to prioritize these in iter 3 since they remain the highest-leverage changes.
+- The semantic validator design is careful and good — worth keeping as reference for future validator layers.
+
+## What to Focus On Next Iteration (iter 3, phase: mid→late)
+
+Still active: prompt_quality, llm_configuration, retry_reliability, pipeline_structure. (token_efficiency activates at iter 4.)
+
+Priority order unchanged from iter 1 memo because none of iter 1's priority_fixes were applied in iter 2:
+1. **Delete embedded schema block from agent.py:265-268** — single highest-leverage change. Lifts llm_configuration to ~4.0-4.5.
+2. **Fix duplicate fetch_webpage_context** — lru_cache on webpage.py:113, or thread through service.py. +0.5-1.0 on pipeline_structure.
+3. **Reorder review-output-schema.json scores to {reason, score}** — one-line edit, CoT benefit.
+4. **Consolidate competitor rule** (now 4 locations → 1 in SYSTEM_PROMPT). +0.5 on prompt_quality.
+5. **Polish (low sev)**: rotate builders on semantic failure; Retry-After HTTP-date form parsing.
+
+If iter 3 touches the embedded schema, verify builder 1 (grounded) still returns valid JSON — it can't use responseSchema (incompatible with google_search), so it relies on responseMimeType + prompt key list. Keep a short top-level key list in the prompt as its structure hint.

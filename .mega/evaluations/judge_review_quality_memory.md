@@ -106,3 +106,42 @@ Deferred until mid/late phase: per-score behavioral anchors, validate_review_out
 3. **Per-item semantic floor in validate_review_output** (gemini.py) — enforce FINDING_REQUIRED fields are non-empty, priority in enum, journey_stage in JOURNEY_STAGES. Naturally pairs with (2).
 
 If iter 2 lands both (1) and (2+3), aggregate should reach ~3.7–3.8. Target 4.0 then requires iter 3 to add per-dimension scoring anchors (agent.py) and business-goal token-overlap check (gemini.py).
+
+---
+
+## Iteration 2 — Observations
+
+### What was applied
+- **agent.py:216-221 — '## Voice Check (do not skip)' block** immediately before '## Execution Instructions'. Names persona.name and persona.voice[:5] as the required anchors and explicitly flags auditor-voice sentences for rewrite. Exactly strategy rq-local-007 step 1.
+- **agent.py:261 — Reflection-Loop 'Voice audit' bullet.** Requires re-reading every persona_voice and persona_reason and rewriting any sentence that could plausibly appear in a generic UX audit. Strategy rq-local-007 step 2.
+- **gemini.py:77-176 — Two new semantic post-checks.** `_check_evidence_grounding(parsed, webpage_context)` performs a 3-consecutive-word sliding-window match (casefold+whitespace-normalized) over finding.evidence against the crawled page; auto-passes evidence that admits unobservability via _UNOBSERVABLE_PHRASES (`js-rendered`, `javascript`, `dynamic content`, `not observable`, `after login`, …). `_check_competitor_leak(parsed, allowed_competitors, webpage_context)` grep-scans findings+strengths string fields with a grammatical _TITLECASE_MULTIWORD regex (1-5 consecutive Title-case tokens), whitelisting anything in `brief.competitors`, anything word-boundary-present in the crawl, and a curated `_PACKET_SAFELIST` of section headers and enum values (journey stages, scoring dimensions, severity labels, persona field names) so scaffolding text isn't flagged. Both checks auto-disable when both reference sources are empty — pipeline remains usable offline.
+- **gemini.py:179-302 — run_review signature + retry loop extended.** Accepts `webpage_context` and `allowed_competitors` kwargs; after structural validate_review_output passes, runs the semantic post-checks; on failure, builds a targeted Retry Note 'Semantic validation failed. Rewrite the review addressing these issues: …' with the top-3 issues. Final attempt bypass at gemini.py:296-297 returns the parsed result rather than starving — defensible tradeoff.
+- **service.py:32,50-51 — webpage_context + competitors threaded into run_review.** The v1 memory noted 'webpage_context is dropped after packet assembly'; iter 2 fixes it. `_webpage_context` → `webpage_context`; `allowed_competitors=brief.competitors` added to the run_review call.
+- **webapp.py — prefers-reduced-motion CSS fallbacks** (out of scope for review_quality criteria).
+
+### Effects on criteria
+| Criterion | v1 | v2 | Δ | Why |
+|-----------|----|----|---|----|
+| evidence_grounding | 3.25 | 4.25 | +1.00 | Post-filter stack landed: trigram substring check + JS-unobservable escape hatch + grammatical competitor regex + packet safelist + targeted retry hints + final-attempt accept. Belt-and-braces (prompt + code) achieved. Residuals: strengths not scanned, paraphrased evidence can trigram-pass, soft-accept isn't logged. |
+| persona_grounding_and_voice | 3.0 | 4.0 | +1.00 | Voice reminder now in the generation-zone (just before Execution Instructions) + Reflection-Loop voice-audit bullet. Residuals: review_summary fields uncovered, no code-level voice probe, fallback persona still has synthetic anchors. |
+| finding_severity_discipline | 4.0 | 4.0 | 0 | Unchanged — no diff in severity rubric or blocker-cap. |
+| scoring_rubric_calibration | 2.25 | 2.5 | +0.25 | Unaddressed; marginal lift from tightened semantic_issues retry loop reducing score-reason contradiction variance in practice, but no per-dimension or 1/3/5 anchors. Now the top remaining lift. |
+| business_goal_anchoring | 3.5 | 3.5 | 0 | Unaddressed. |
+| validation_semantic_coverage | 2.0 | 2.75 | +0.75 | validate_review_output itself unchanged (structural-only) BUT the post-check layer now covers the two highest-value semantic gaps (ungrounded evidence, competitor leak) and pipes through targeted retry hints — a big lift for this criterion even though it remains deferred in mid phase. Per-finding field completeness + journey_stage enum + business-goal overlap still missing. |
+| **aggregate** | **3.06** | **3.725** | **+0.665** | |
+
+### New patterns / observations
+1. **The iter-2 implementation is notably disciplined.** The `_TITLECASE_MULTIWORD` regex + `_PACKET_SAFELIST` pattern avoids the anti-pattern of hardcoding brand names — instead it treats "this is a known Product Name that leaked" as a grammatical shape (multi-word Title Case) constrained by two authorized lists (user-supplied + crawled). This is the right architecture for a pipeline that must work across domains.
+2. **Word-boundary padding trick** at gemini.py:205 (`context_padded = f" {context_norm} "`) prevents false-negatives from raw substring containment (e.g. "Stripe" being masked by "restrictions"). Small but shows attention to detail.
+3. **JS-unobservable escape hatch** is important for not punishing the model when it correctly admits limitations of the static crawl — a common failure mode in naive grounding checks.
+4. **Final-attempt accept** (gemini.py:296-297) is correct architecturally but should emit a soft-warning log so reviewers can audit soft-accept cases. Currently silent.
+5. **validate_review_output remains structural-only.** The semantic layer landed in post-checks inside run_review, not in the validator. This creates a subtle split-enforcement — if anyone in the future builds a second caller of validate_review_output thinking it's the full semantic floor, they'll get a false sense of safety.
+6. **JOURNEY_STAGES still not enum-enforced in review-output-schema.json** — the memory noted this at iter 0 and 1, and rq-local-005 labels it as trivial effort. Not done yet; still the easiest remaining quick win for validation_semantic_coverage.
+
+### Next iteration (iter 3) — highest ROI
+1. **Per-dimension + per-score 1/3/5 anchors** in agent.py `## Scoring Rubric` block — strategy rq-local-002, pure prose, highest single-criterion lift remaining (scoring_rubric_calibration 2.5 → ~3.8).
+2. **journey_stage enum in review-output-schema.json** — strategy rq-local-005, trivial (replace bare "string" with pipe-enum), directly lifts validation_semantic_coverage.
+3. **Business-goal token-overlap check** in run_review (threading brief.business_goal through like webpage_context was), strategy rq-local-003 partial — cheap code addition, lifts business_goal_anchoring.
+4. **Lightweight per-finding field completeness check** in validate_review_output (FINDING_REQUIRED non-empty, priority in enum, journey_stage in JOURNEY_STAGES) to formalize what the post-filter implies and close the split-enforcement risk.
+
+If iter 3 lands (1)+(2)+(3), aggregate should reach ~4.1–4.2 — above the 4.0 target with one iteration to spare for polish (strengths-evidence grounding, voice coverage of review_summary fields, blocker-cap code enforcement).
