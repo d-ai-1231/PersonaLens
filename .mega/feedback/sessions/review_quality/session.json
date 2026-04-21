@@ -1,0 +1,60 @@
+{
+  "session_id": "review_quality",
+  "event": "optimize/step4/curate",
+  "source": "local-fallback",
+  "note": "PCR endpoint unavailable (404). Cheatmap synthesized from local wisdom store + judge_review_quality_memory.md baseline analysis.",
+  "wisdoms": [
+    {
+      "id": "rq-local-001",
+      "name": "Behavioral Anchors for Severity Rating Scale",
+      "score": 0.95
+    },
+    {
+      "id": "rq-local-002",
+      "name": "Per-Score Rubric Anchors for Scoring Dimensions",
+      "score": 0.93
+    },
+    {
+      "id": "rq-local-003",
+      "name": "Semantic Validator Expansion Beyond Structural Checks",
+      "score": 0.92
+    },
+    {
+      "id": "rq-local-004",
+      "name": "Evidence Substring Check via Threaded webpage_context",
+      "score": 0.91
+    },
+    {
+      "id": "rq-local-005",
+      "name": "Journey Stage Enum Enforcement in Response Schema",
+      "score": 0.90
+    },
+    {
+      "id": "rq-local-006",
+      "name": "Competitor-Name Post-Filter in run_review",
+      "score": 0.89
+    },
+    {
+      "id": "rq-local-007",
+      "name": "Voice Carry-Through Reinforcement Near Execution Instructions",
+      "score": 0.87
+    },
+    {
+      "id": "rq-local-008",
+      "name": "Semantic Retry Feedback with Finding-Level Diagnostics",
+      "score": 0.85
+    }
+  ],
+  "portfolio": {
+    "criteria": [
+      "evidence_grounding",
+      "finding_severity_discipline",
+      "scoring_rubric_calibration",
+      "validation_semantic_coverage",
+      "persona_grounding_and_voice",
+      "business_goal_anchoring"
+    ],
+    "baseline_aggregate": 2.68,
+    "target": 4.0
+  }
+}

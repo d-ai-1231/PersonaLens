@@ -1,0 +1,70 @@
+{
+  "session_id": "web_ux_quality",
+  "event": "optimize/step4/curate",
+  "source": "local_wisdom_store_fallback",
+  "pcr_status": "unavailable_404",
+  "created_at": "2026-04-20T00:00:00Z",
+  "wisdoms": [
+    {
+      "id": "e011242bced270f7:e011242bced270f7:e011242bced270f7",
+      "name": "WCAG Accessibility & Semantic UI Compliance",
+      "score": 0.91,
+      "references": [
+        "apple-hig-designer#Accessibility L559-669",
+        "ui-ux-pro-max#Rule Categories by Priority L62-77",
+        "ui-ux-pro-max#Quick Reference L79-139",
+        "ui-ux-pro-max#Pre-Delivery Checklist L633-673"
+      ]
+    },
+    {
+      "id": "2890bb8597def16e:e20d0a72cd71f638:2890bb8597def16e",
+      "name": "Responsive Layout & Interaction States",
+      "score": 0.88,
+      "references": [
+        "design-to-component-translator#Responsive Design Translation L289-327",
+        "design-to-component-translator#Accessibility Mapping L455-480",
+        "web-frameworks#Best Practices L313-320"
+      ]
+    },
+    {
+      "id": "044c423c8dd59ab0:fffeaa5816aca7ad:044c423c8dd59ab0",
+      "name": "Skeleton Loading & Perceived Performance",
+      "score": 0.85,
+      "references": [
+        "ui-ux-pro-max#Quick Reference L193-315",
+        "frontend-patterns#Performance Optimization L296-389"
+      ]
+    },
+    {
+      "id": "44fead57f3c10752:44fead57f3c10752:44fead57f3c10752",
+      "name": "Accessibility Audit & Animation Accessibility",
+      "score": 0.87,
+      "references": [
+        "web-perf#Phase 4: Accessibility Snapshot L132-144",
+        "frontend-patterns#Animation Patterns L515-568",
+        "frontend-patterns#Accessibility Patterns L569-645"
+      ]
+    },
+    {
+      "id": "ac8a1059a8fbbe71:51eb0b5b0c7422b7:ac8a1059a8fbbe71",
+      "name": "Reduced Motion & Cross-Device Testing",
+      "score": 0.82,
+      "references": [
+        "overdrive#Verify the Result L141-148"
+      ]
+    },
+    {
+      "id": "ac8a1059a8fbbe71:12eecc819b32f050:a5844caa2048e128",
+      "name": "Mobile-First Responsive Design",
+      "score": 0.80,
+      "references": [
+        "seo-technical-audit#Phase 4: Mobile-First Readiness L98-108"
+      ]
+    }
+  ],
+  "portfolio": {
+    "total_wisdoms": 6,
+    "domains": ["accessibility", "responsive-design", "perceived-performance", "i18n", "form-ux", "polling"],
+    "agent_type": "judge-web_ux_quality"
+  }
+}

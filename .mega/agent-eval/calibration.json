@@ -1,0 +1,8 @@
+{
+  "evaluatorTargets": {
+    "review_quality": 4.0,
+    "prompt_pipeline": 4.0,
+    "web_ux_quality": 4.2
+  },
+  "targetScore": 4.067
+}

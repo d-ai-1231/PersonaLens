@@ -1,0 +1,26 @@
+{
+  "projectId": "mega-1776734317191",
+  "evaluators": [
+    {
+      "id": "review_quality",
+      "name": "Review Output Quality",
+      "focus": "Quality, trustworthiness, and persona-grounding of the structured UX review the pipeline produces — evidence-grounded reasoning, journey-stage attribution, business-goal anchoring, strict competitor-name rule compliance, 8-dimension scoring discipline, Blocker/High/Medium/Nit severity defensibility, and persona voice alignment.",
+      "agent_file": ".claude/agents/judge-mega-1776734317191-review_quality.md",
+      "tools": ["Read", "Grep", "Glob", "Bash"]
+    },
+    {
+      "id": "prompt_pipeline",
+      "name": "Prompt & LLM Pipeline Engineering",
+      "focus": "Prompt templates, LLM configuration, retry reliability, pipeline structure, and token efficiency of the two-stage Gemini pipeline (enrich_persona + run_review).",
+      "agent_file": ".claude/agents/judge-mega-1776734317191-prompt_pipeline.md",
+      "tools": ["Read", "Grep", "Glob"]
+    },
+    {
+      "id": "web_ux_quality",
+      "name": "Web UX & Frontend Quality",
+      "focus": "Quality of the server-rendered web form + result view (webapp.py): form flow, skeleton loading, accessibility (WCAG 2.2 AA), visual language, responsive breakpoints, bilingual EN/KO, and inline frontend code quality.",
+      "agent_file": ".claude/agents/judge-mega-1776734317191-web_ux_quality.md",
+      "tools": ["Read", "Grep", "Glob", "Bash"]
+    }
+  ]
+}
