@@ -29,7 +29,7 @@ def run_review_for_brief(
     result_output: Path,
     raw_output: Path,
 ) -> dict:
-    packet, _webpage_context = build_packet_for_brief(brief, schema_path, model=model)
+    packet, webpage_context = build_packet_for_brief(brief, schema_path, model=model)
 
     packet_output.parent.mkdir(parents=True, exist_ok=True)
     skeleton_output.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +47,8 @@ def run_review_for_brief(
         schema=packet.response_json_schema,
         config=GeminiConfig(model=model),
         raw_output_path=raw_output,
+        webpage_context=webpage_context,
+        allowed_competitors=brief.competitors,
     )
 
     result_output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

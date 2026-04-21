@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import time
 import urllib.error
 import urllib.request
@@ -66,11 +67,149 @@ def _finish_reason(response_json: dict) -> str:
     return ((candidates[0] or {}).get("finishReason") or "").strip()
 
 
+_UNOBSERVABLE_PHRASES = (
+    "not observable",
+    "not visible",
+    "js-rendered",
+    "js rendered",
+    "javascript",
+    "dynamically loaded",
+    "dynamic content",
+    "runtime content",
+    "requires interaction",
+    "after login",
+    "behind the login",
+)
+
+
+_TITLECASE_MULTIWORD = re.compile(
+    r"\b[A-Z][A-Za-z0-9+][A-Za-z0-9+\-]{0,23}(?:\s+[A-Z][A-Za-z0-9+][A-Za-z0-9+\-]{0,23}){1,4}\b"
+)
+
+
+# Multi-word title-cased tokens that are part of the packet scaffolding (section headers, enum values
+# for severity / journey stages / scoring dimensions). Safelisting these prevents false positives
+# where the model legitimately quotes the structure we taught it in the prompt. This list is
+# deliberately keyed to packet structure only, not to any specific user input or website content.
+_PACKET_SAFELIST = frozenset(
+    s.casefold() for s in (
+        "System Prompt", "Review Goal", "Persona Card", "Known Competitors",
+        "Website Context", "Journey Stages", "Scoring Dimensions",
+        "Execution Instructions", "Reflection Loop", "Retry Note",
+        "Required Output Schema", "Core Journey", "Business Goal",
+        "Open Questions", "Quick Wins", "Structural Fixes", "Validation Experiments",
+        "Target User", "Pain Points", "Task Clarity", "Task Success",
+        "Effort Load", "Trust Confidence", "Value Communication",
+        "Error Recovery", "Emotional Fit", "Follow Up", "Retention Cue",
+        "Access Needs", "Decision Style", "Device Context", "Technical Level",
+        "Success Definition", "Evidence Sources", "Web Research Summary",
+        "Task Start", "Core Action", "Journey Stage", "Journey Stages",
+        "Review Packet", "Review Summary", "Persona Voice",
+    )
+)
+
+
+def _normalize_for_match(text: str) -> str:
+    return re.sub(r"\s+", " ", text.casefold()).strip()
+
+
+def _check_evidence_grounding(parsed: dict, webpage_context: str) -> list[str]:
+    """Return human-readable issues for findings whose `evidence` isn't grounded in the crawled page.
+
+    An evidence field is considered grounded if (a) any 3-consecutive-word window of it (normalized)
+    appears in the webpage_context (normalized), OR (b) it explicitly admits the signal is not
+    observable from static HTML (e.g., JS-rendered / dynamic). Missing webpage_context disables the
+    check entirely so the pipeline remains usable offline.
+    """
+    if not webpage_context:
+        return []
+    context_norm = _normalize_for_match(webpage_context)
+    issues: list[str] = []
+    findings = parsed.get("findings") or []
+    for idx, finding in enumerate(findings):
+        if not isinstance(finding, dict):
+            continue
+        evidence = finding.get("evidence") or ""
+        if not isinstance(evidence, str) or not evidence.strip():
+            continue
+        evidence_norm = _normalize_for_match(evidence)
+        if any(p in evidence_norm for p in _UNOBSERVABLE_PHRASES):
+            continue
+        tokens = evidence_norm.split()
+        if len(tokens) < 3:
+            continue
+        windows = (" ".join(tokens[i:i + 3]) for i in range(len(tokens) - 2))
+        if any(w in context_norm for w in windows):
+            continue
+        title = finding.get("title") or f"finding[{idx}]"
+        issues.append(
+            f"finding '{title}': evidence not grounded in the crawled website context "
+            "(no 3-word window matched, and the evidence does not admit 'not observable / JS-rendered / dynamic')"
+        )
+    return issues
+
+
+def _check_competitor_leak(
+    parsed: dict,
+    allowed_competitors: list[str] | None,
+    webpage_context: str,
+) -> list[str]:
+    """Return title-cased multi-word tokens appearing in findings/strengths that are neither in the
+    user-approved competitor list nor present in the crawled website context.
+
+    Pattern detection is grammatical (multi-word title case), not content-specific: no hardcoded
+    brand list. The packet-scaffolding safelist only excludes section headers and enum values that
+    the LLM was instructed to quote verbatim.
+
+    Returns an empty list when BOTH `allowed_competitors` and `webpage_context` are empty — without
+    either reference there is no way to discriminate legitimate multi-word terms from leaked product
+    names, so the check is disabled instead of flagging every idiom.
+    """
+    allowed_norm = {c.strip().casefold() for c in (allowed_competitors or []) if isinstance(c, str) and c.strip()}
+    context_norm = _normalize_for_match(webpage_context or "")
+    if not allowed_norm and not context_norm:
+        return []
+    # Wrap context with spaces so substring checks behave as word-boundary checks
+    # (prevents e.g. "Stripe" being masked by "restrictions" via raw substring containment).
+    context_padded = f" {context_norm} " if context_norm else ""
+
+    def _scan_fields():
+        for key in ("findings", "strengths"):
+            items = parsed.get(key) or []
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                for fkey in ("title", "problem", "evidence", "improvement_direction", "persona_reason"):
+                    v = item.get(fkey)
+                    if isinstance(v, str):
+                        yield v
+
+    found: set[str] = set()
+    for text in _scan_fields():
+        for match in _TITLECASE_MULTIWORD.finditer(text):
+            token = match.group(0).strip()
+            token_norm = token.casefold()
+            if token_norm in _PACKET_SAFELIST:
+                continue
+            # Allowed competitors: match whole token, or token is multi-word-substring of an allowed entry (or vice versa).
+            if any(token_norm == a or f" {token_norm} " in f" {a} " or f" {a} " in f" {token_norm} " for a in allowed_norm):
+                continue
+            # Website context: require word-boundary presence of the token in the crawled page.
+            if context_padded and f" {token_norm} " in context_padded:
+                continue
+            found.add(token)
+    return sorted(found)
+
+
 def run_review(
     packet_markdown: str,
     schema: dict,
     config: GeminiConfig,
     raw_output_path: Path | None = None,
+    webpage_context: str | None = None,
+    allowed_competitors: list[str] | None = None,
 ) -> dict:
     api_key = normalize_api_key(os.getenv(config.api_key_env, ""))
     if not api_key:
@@ -135,10 +274,32 @@ def run_review(
             continue
 
         validation_error = validate_review_output(parsed)
-        if not validation_error:
+        if validation_error:
+            previous_failure = f"The previous response was structurally empty: {validation_error}. Return a populated review."
+            continue
+
+        semantic_issues: list[str] = []
+        if webpage_context:
+            semantic_issues.extend(_check_evidence_grounding(parsed, webpage_context))
+        leak = _check_competitor_leak(parsed, allowed_competitors, webpage_context or "")
+        if leak:
+            semantic_issues.append(
+                "unapproved product names appeared in findings/strengths: "
+                + ", ".join(f"'{name}'" for name in leak[:5])
+                + ". Only names in Known Competitors or the crawled website context may be used."
+            )
+
+        if not semantic_issues:
             return parsed
 
-        previous_failure = f"The previous response was structurally empty: {validation_error}. Return a populated review."
+        # Last attempt: accept rather than starving the loop when a genuine term couldn't be anchored.
+        if attempt >= _MAX_ATTEMPTS - 1:
+            return parsed
+
+        previous_failure = (
+            "Semantic validation failed. Rewrite the review addressing these issues: "
+            + "; ".join(semantic_issues[:3])
+        )
 
     raise GeminiError(
         "Model returned an empty or invalid review after retry"

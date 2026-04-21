@@ -213,6 +213,13 @@ def build_review_packet(brief: ReviewBrief, schema: dict, webpage_context: str |
             "## Scoring Dimensions",
             dimension_lines,
             "",
+            "## Voice Check (do not skip)",
+            (
+                f"Every persona_voice and persona_reason field MUST be a first-person quote from {persona.name} "
+                f"that uses at least one of these anchors: {', '.join(persona.voice[:5])}. "
+                "Auditor-voice sentences (impersonal, textbook-UX phrasing) must be rewritten in the persona's voice before finalizing."
+            ),
+            "",
             "## Execution Instructions",
             "1. Anchor EVERY finding and recommendation to the user's STATED business goal, persona, and core journey. This is the only frame of reference.",
             "2. Stay inside the defined persona.",
@@ -251,6 +258,7 @@ def build_review_packet(brief: ReviewBrief, schema: dict, webpage_context: str |
             "- If the page has off-topic or low-priority content (compared to the stated goal), the review recommends removing/de-emphasizing it rather than expanding it",
             "- Severity discipline: at most one Blocker per 5 findings unless the journey is genuinely broken. If every finding is High, downgrade the weakest. If the journey works cleanly, it is correct and expected for the review to contain only Medium/Nit findings — do not invent High/Blocker to add urgency.",
             "- Each finding's impact_on_user and impact_on_business together reconstruct Nielsen's severity triad (frequency, magnitude, persistence); if the triad is not visible in the text, revise the finding before finalizing.",
+            "- Voice audit: re-read every persona_voice and persona_reason field — if any sentence could plausibly appear in a generic UX audit report, rewrite it in first-person and use at least one of the persona voice anchors above.",
             "",
             "If any item fails, revise before returning the final result.",
             "",

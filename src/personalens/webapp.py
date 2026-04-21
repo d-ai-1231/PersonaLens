@@ -447,7 +447,12 @@ function showPersonaLoading() {{
         <div style="font-size:.85rem;color:#6d645a;">AI가 서비스와 사용자를 분석하고 있습니다...</div>
       </div>
     </div>
-    <style>@keyframes spin {{ to {{ transform:rotate(360deg); }} }}</style>
+    <style>
+      @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
+      @media (prefers-reduced-motion: reduce) {{
+        .spin-disc, [style*="spin"] {{ animation: none !important; }}
+      }}
+    </style>
   `;
 }}
 
@@ -1076,6 +1081,30 @@ body { animation: skel-fade-in .25s ease; }
 @keyframes skel-dot-anim {
   0%, 80%, 100% { transform: scale(.6); opacity: .4; }
   40% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .hero h1,
+  .verdict,
+  .fi-item,
+  .sc-label,
+  .sc-num,
+  .sc-reason,
+  .cf strong,
+  .cf-detail,
+  .cf-action,
+  .cf-stage,
+  .cf-pri,
+  .imp strong,
+  .imp-meta,
+  .oq,
+  .conf,
+  .skel-dot,
+  .sc-fill,
+  [class*="shimmer"],
+  [class*="skel-"] {
+    animation: none !important;
+  }
 }
 </style>
 <script>
