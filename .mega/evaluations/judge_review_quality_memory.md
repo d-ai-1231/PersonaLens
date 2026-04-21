@@ -71,3 +71,38 @@ Highest-ROI fixes:
 3. **Competitor-name post-filter + evidence substring check** in gemini.py run_review — one structural change that lifts evidence_grounding meaningfully; requires threading webpage_context through run_review_for_brief in service.py.
 
 Deferred until mid/late phase: per-score behavioral anchors, validate_review_output expansion, business-goal textual-overlap check.
+
+---
+
+## Iteration 1 — Observations
+
+### What was applied
+- **agent.py:234-239 — Severity rubric with behavioral anchors.** Instruction #14 fully rewritten. Blocker = cannot complete core_journey without external help; High = friction directly threatens business_goal; Medium = avoidable effort with no business_goal threat; Nit = polish. Explicit "Do NOT use 'High' as a default; most findings are Medium unless they meet the specific tests below." Nielsen triad (frequency, magnitude, persistence) is required to be reconstructible from impact_on_user + impact_on_business, with a built-in downgrade instruction.
+- **agent.py:252-253 — Reflection Loop blocker-cap and downgrade rule.** "At most one Blocker per 5 findings unless the journey is genuinely broken." "If every finding is High, downgrade the weakest." "If the journey works cleanly, it is correct and expected for the review to contain only Medium/Nit — do not invent High/Blocker to add urgency." Plus an explicit triad-reconstruction check.
+- **gemini.py — Error classification + exponential backoff.** New exception hierarchy (GeminiPermanentError / GeminiRateLimitError / GeminiTransientError), full-jitter backoff, Retry-After parsing, safety-reason handling via _finish_reason (SAFETY/RECITATION/BLOCKLIST/PROHIBITED_CONTENT → permanent). Out of scope for this judge's criteria — does not address evidence_grounding / persona_voice / validate_review_output.
+- **gemini.py — Competitor rule duplicated into plain-text fallback** (gemini.py:309-311). Closes the weakest retry-leakage hole for competitor names. Small evidence_grounding lift.
+- **gemini.py — Temperature 0.1, topP 0.95, responseSchema threaded into inline + fallback builders.** Marginal reductions in hallucination variance and score-collapse variance; structural conformance tighter on the weaker builders.
+
+### Effects on criteria
+| Criterion | v0 | v1 | Δ | Why |
+|-----------|----|----|---|----|
+| evidence_grounding | 3.0 | 3.25 | +0.25 | Fallback competitor rule + lower temp + responseSchema threading. No webpage_context post-filter yet. |
+| persona_grounding_and_voice | 3.0 | 3.0 | 0 | Not addressed. Voice still surfaces only once at agent.py:191. |
+| finding_severity_discipline | 2.0 | 4.0 | +2.0 | Complete Nielsen-triad + behavioral-anchor rewrite. Only headroom is code-level enforcement of the blocker-cap. |
+| scoring_rubric_calibration | 2.0 | 2.25 | +0.25 | Lower temperature slightly reduces central-tendency variance. No per-dimension anchors. |
+| business_goal_anchoring | 3.5 | 3.5 | 0 | Not addressed. Reinforcement via severity anchor language is incidental. |
+| validation_semantic_coverage | 2.0 | 2.0 | 0 | validate_review_output unchanged. Error-classification refactor is infrastructural only. |
+| **aggregate** | **2.68** | **3.06** | **+0.38** | |
+
+### New patterns / observations
+- The iter-1 gemini.py refactor is well-scoped (HTTP-layer concerns only) and did not bleed into validate_review_output — a clean separation of concerns.
+- responseSchema is now applied to `build_request_inline_prompt` and `build_request_plain_text_fallback`, but NOT to `build_request_with_system_instruction` (Gemini bans google_search + responseSchema combination — correctly documented at gemini.py:234). This means the first attempt relies only on prompt-embedded schema + responseMimeType, while the fallback attempts have tighter structural conformance — inverted from intuition but architecturally correct.
+- Temperature=0.1 is aggressive for a persona review task; may actually hurt persona voice diversity. Watch for "all reviews sound identical" symptom in next iteration's sample outputs.
+- Severity anchor language ("directly threatens the stated business_goal") creates an implicit business_goal-salience boost — small halo effect on business_goal_anchoring that we did not credit numerically (already at 3.5).
+
+### Next iteration (iter 2) — highest ROI
+1. **Voice carry-through** (agent.py) — insert voice reminder immediately before `## Execution Instructions` + a voice-audit bullet in Reflection Loop. ~10 lines, lifts persona_grounding_and_voice 3.0 → 4.0.
+2. **Thread webpage_context through run_review + evidence substring check + competitor token scan** (service.py + gemini.py). Single structural change. Lifts evidence_grounding 3.25 → 4.0+ AND validation_semantic_coverage 2.0 → 3.0+.
+3. **Per-item semantic floor in validate_review_output** (gemini.py) — enforce FINDING_REQUIRED fields are non-empty, priority in enum, journey_stage in JOURNEY_STAGES. Naturally pairs with (2).
+
+If iter 2 lands both (1) and (2+3), aggregate should reach ~3.7–3.8. Target 4.0 then requires iter 3 to add per-dimension scoring anchors (agent.py) and business-goal token-overlap check (gemini.py).

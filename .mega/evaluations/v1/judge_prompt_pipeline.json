@@ -1,0 +1,63 @@
+{
+  "evaluator_id": "prompt_pipeline",
+  "iteration": 1,
+  "iteration_budget": { "total": 5, "current": 1, "phase": "mid" },
+  "active_criteria": ["prompt_quality", "llm_configuration", "retry_reliability", "pipeline_structure"],
+  "deferred_criteria": ["token_efficiency"],
+  "scores": {
+    "prompt_quality": {
+      "score": 2.75,
+      "max": 5,
+      "reasoning": "New severity rubric with Nielsen's triad (agent.py:234-239, 252-253) is a real quality gain — behavioral anchors for Blocker/High/Medium/Nit and a triad-based self-check. However, none of the baseline duplication was addressed: competitor rule still appears in SYSTEM_PROMPT (agent.py:46-52), packet 'Known Competitors' header (agent.py:195), plain-text fallback builder (gemini.py:311), AND enrich_persona prompt (gemini.py:360-365) — now 4 locations. EVALUATE-not-EXPAND still stated 3× (SYSTEM_PROMPT lines 23-37, exec instructions 7-10, reflection loop lines 249-251). SYSTEM_PROMPT is duplicated in both systemInstruction (gemini.py:236-243) and packet markdown (agent.py:169-170), defeating prompt caching for the largest stable block. review-output-schema.json scores still ordered {score, reason} (lines 24-31) — reasoning-before-commit still violated. The rubric addition lifts this from 2.5 to 2.75."
+    },
+    "llm_configuration": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Major upgrade. GeminiConfig now sets temperature=0.1 + top_p=0.95 (gemini.py:44-45), plumbed through _base_generation_config (gemini.py:214-220) to all three builders and enrich_persona. responseSchema is correctly attached to builders 2 and 3 (gemini.py:268-269, 300-301); the grounded builder intentionally omits it because google_search is incompatible with responseSchema on Gemini — correct understanding. responseMimeType restored on the plain-text fallback (gemini.py:299) so it's no longer a JSON-mode regression path. Holding back from 5: (1) schema remains embedded in packet markdown (agent.py:258-260) alongside responseSchema — Google's controlled-generation docs explicitly warn 'might lead to lower-quality generated output' when duplicated; the 'defense in depth' framing is the exact anti-pattern the docs warn against. (2) Both stages still hardcode gemini-2.5-pro (service.py:17,84,138); enrich_persona is an obvious flash candidate for ~5-10x cost reduction. (3) Three divergent builder shapes remain instead of a single canonical builder."
+    },
+    "retry_reliability": {
+      "score": 4.5,
+      "max": 5,
+      "reasoning": "Near-best-practice. Error hierarchy GeminiPermanentError/GeminiRateLimitError/GeminiTransientError (gemini.py:17-30) correctly maps HTTP status classes in _make_request (gemini.py:165-175): 4xx→permanent (raises, no retry), 429→rate-limit with Retry-After honored (gemini.py:168-170), 5xx+URLError→transient. Full-jitter exponential backoff capped at 30s (gemini.py:48-50) per AWS guidance. Max 3 attempts matches industry standard (down from 6). Safety/RECITATION/BLOCKLIST/PROHIBITED_CONTENT finishReason treated as permanent (gemini.py:124-127) — prevents wasted retries on content filters. Validation errors still injected into previous_failure for next-attempt context (gemini.py:141). enrich_persona uses the same classification (gemini.py:432-444). Minor gaps: (1) _parse_retry_after only handles numeric-seconds form, not HTTP-date form (RFC 7231 allows both). (2) attempt→builder coupling (gemini.py:86) means a transient error on attempt 0 switches prompt shape on attempt 1 — the prompt change is uncorrelated with the failure cause, making root-cause analysis harder; separation of API-failure vs validation-failure retry paths is still implicit. (3) No circuit breaker for persistent failure. These are polish-level."
+    },
+    "pipeline_structure": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "Partial progress only. Schema placement is now split: moved to responseSchema for builders 2-3 but ALSO still embedded in packet markdown (agent.py:258-260) — the duplicate-schema anti-pattern is now explicitly in place for 2 of 3 builders. Duplicate webpage fetch is UNADDRESSED: fetch_webpage_context is called once in build_packet_for_brief (service.py:18) and again in generate_persona_from_form (service.py:88); an end-to-end request from form still pays two full HTTP crawls. No persona cache keyed by (service_name, service_type, persona_description) hash — identical persona requests in batch eval still pay full LLM cost. Model hardcoded at gemini-2.5-pro across three call sites (service.py:17, 84, 138); no flash tier for persona enrichment. Retry builder topology remains 3 divergent shapes rather than one canonical builder. Baseline was 2.0; the partial schema-attachment work nudges this to 2.5."
+    },
+    "token_efficiency": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "Unchanged from baseline. The schema block (~500-800 tokens) is still embedded in packet (agent.py:258-260) despite being attached as responseSchema — net token cost went UP, not down, because responseSchema body is also sent. Competitor rule still restated 4× (SYSTEM_PROMPT, packet header, plain-text fallback builder, enrich_persona) — each instance ~50-80 tokens. EVALUATE-not-EXPAND still 3× (~100 tokens wasted). Webpage excerpt still 2200 chars × 8 pages = ~4.4k tokens with no relevance filter (webpage.py:14-15). New severity rubric adds ~200 tokens in exchange for meaningful quality improvement — net positive but still costly. Estimated removable waste per call: ~1500-2000 tokens."
+    }
+  },
+  "aggregate_score": 3.26,
+  "target_score": null,
+  "feedback": "Iteration 1 delivered the two highest-leverage fixes from the iter-0 priority list: temperature + top_p are now set (0.1 / 0.95), and a proper error-classification retry loop with exponential backoff + jitter + Retry-After handling is in place. retry_reliability jumps from 1.5 to 4.5 — this is excellent engineering. llm_configuration moves from 1.5 to 3.5 thanks to responseSchema being attached for 2 of 3 builders plus temperature set. However, the 'defense in depth' choice to keep the schema embedded in the prompt alongside responseSchema directly contradicts Google's controlled-generation guidance ('might lead to lower-quality generated output') and blocks both higher llm_configuration scores AND the full token_efficiency win — the schema duplication should be resolved in favor of responseSchema-only. Prompt_quality barely moved because none of the restatement duplication was addressed, the schema field-order ({score, reason} → should be {reason, score}) was not touched, and enrich_persona competitor rule is a 4th copy of a rule that should live in one place. Pipeline_structure is now active in mid-phase: duplicate webpage fetch and absent persona cache are the biggest remaining structural waste (one full HTTP crawl and often one full LLM call redundantly per end-to-end request). Recommended next iteration: (1) delete embedded schema markdown from build_review_packet, (2) reorder review-output-schema.json scores to {reason, score}, (3) consolidate competitor rule to SYSTEM_PROMPT only, (4) memoize fetch_webpage_context across persona+review stages via a simple lru_cache on URL, (5) optionally reduce to one canonical builder.",
+  "priority_fixes": [
+    {
+      "criterion": "llm_configuration",
+      "severity": "high",
+      "target_files": ["src/personalens/agent.py"],
+      "suggestion": "Delete the embedded schema JSON block from build_review_packet (agent.py:257-260 — the '## Required Output Schema' section with the json.dumps(schema) fenced block). Google's controlled-generation docs explicitly warn that duplicating the schema in the prompt alongside responseSchema 'might lead to lower-quality generated output'. The schema object is already attached as responseSchema for builders 2 & 3. For builder 1 (google_search grounded), replace the full schema dump with a one-line reference like 'Return JSON with these top-level keys: review_summary, persona_card, scores, strengths, findings, prioritized_improvements, open_questions.' This reclaims ~500-800 tokens per call and removes the anti-pattern."
+    },
+    {
+      "criterion": "prompt_quality",
+      "severity": "high",
+      "target_files": ["review-output-schema.json", "src/personalens/agent.py"],
+      "suggestion": "(a) In review-output-schema.json, reorder each score object from {\"score\": 1, \"reason\": \"string\"} to {\"reason\": \"string\", \"score\": 1} (lines 24-31). This enforces reasoning-before-commit chain-of-thought ordering per structured-output best practices. Do the same reordering in any schema-generation code that mirrors the template order so propertyOrdering matches. (b) Consolidate the competitor rule to a SINGLE location: keep it ONLY in SYSTEM_PROMPT (agent.py:46-52), and delete the restatements in (i) packet 'Known Competitors' header (agent.py:195), (ii) plain-text fallback builder (gemini.py:311), (iii) enrich_persona prompt (gemini.py:360-365). The packet header can simply read 'Known Competitors (only these names may be mentioned)'. Same treatment for EVALUATE-not-EXPAND: keep only in SYSTEM_PROMPT, drop from exec instructions 7-10 and reflection loop."
+    },
+    {
+      "criterion": "retry_reliability",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Two small polish items: (1) Extend _parse_retry_after (gemini.py:53-59) to also accept HTTP-date form per RFC 7231 — use email.utils.parsedate_to_datetime and fall back to computing seconds from now; Gemini occasionally returns HTTP-date. (2) Decouple attempt index from builder index (gemini.py:86): only switch request shape on validation failures (empty/invalid JSON after success), not on API-layer transient failures — on a 503, retrying with the SAME prompt is correct; switching prompt shape confounds the root cause. Track two counters (api_attempts, validation_attempts) and pick the builder based on validation_attempts only."
+    },
+    {
+      "criterion": "pipeline_structure",
+      "severity": "high",
+      "target_files": ["src/personalens/service.py", "src/personalens/webpage.py"],
+      "suggestion": "Eliminate the duplicate webpage fetch: generate_persona_from_form (service.py:88) and build_packet_for_brief (service.py:18) both call fetch_webpage_context for the same URL in a single end-to-end request. Add @functools.lru_cache(maxsize=256) to fetch_webpage_context in webpage.py, OR thread the webpage_context through: have generate_persona_from_form return (persona_dict, webpage_context) and pass the context into build_packet_for_brief to skip re-fetching. Additionally, add a persona cache keyed by sha256(service_name|service_type|persona_description)[:16] that short-circuits enrich_persona on identical inputs — critical for batch evaluation workloads. Also consider a model-tiering knob: default enrich_persona to gemini-2.5-flash (service.py:84) while keeping run_review on gemini-2.5-pro, saving ~5-10x on persona cost."
+    }
+  ]
+}

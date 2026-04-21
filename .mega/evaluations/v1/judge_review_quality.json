@@ -1,0 +1,62 @@
+{
+  "evaluator_id": "review_quality",
+  "iteration": 1,
+  "iteration_budget": { "total": 5, "current": 1, "phase": "early" },
+  "active_criteria": ["evidence_grounding", "persona_grounding_and_voice", "finding_severity_discipline"],
+  "deferred_criteria": ["scoring_rubric_calibration", "business_goal_anchoring", "validation_semantic_coverage"],
+  "scores": {
+    "evidence_grounding": {
+      "score": 3.25,
+      "max": 5,
+      "reasoning": "Small incremental lift from v0=3.0. The plain-text fallback builder now carries the competitor rule explicitly in its user-turn text (gemini.py:309-311: 'Do NOT mention any competitor or third-party product names unless they appear in the brief's Known Competitors list or in the provided website context.'), closing the worst retry-leakage hole. Temperature lowered to 0.1 and topP=0.95 (gemini.py:72-73) modestly reduce hallucination variance. responseSchema is now threaded into the inline + fallback builders (gemini.py:268-269, 300-301), tightening structural conformance. However, the structural defenses this criterion most needs remain unbuilt: (a) no substring check of finding.evidence against webpage_context — webpage_context is still dropped after packet build in service.py:32 ('packet, _webpage_context = build_packet_for_brief(...)'), (b) no post-response competitor-name token scan against brief.competitors, (c) validate_review_output (gemini.py:190-198) is unchanged and still does not touch evidence semantics, (d) JS-dynamic 'not observable' admission is not enforced. Retry notes on validation failure remain generic ('previous response was structurally empty'), giving the model no signal about which evidence strings lack grounding."
+    },
+    "persona_grounding_and_voice": {
+      "score": 3.0,
+      "max": 5,
+      "reasoning": "Unchanged from v0. The iter-1 diff does not touch voice carry-through. Voice anchors still surface once in the persona card block (agent.py:191) and are never re-referenced in the Execution Instructions (agent.py:216-242) or the Reflection Loop (agent.py:244-253). The service.py fallback persona (service.py:119-134) still ships a generic voice triple when Gemini enrichment fails. enrich_persona (gemini.py:330-) triangulation remains strong but carry-through into findings.persona_voice / strengths.persona_reason / improvement_direction is still unprotected. Temperature=0.1 very marginally aids voice-consistency but is not a substitute for voice-reminder instructions near the generation zone. The Reflection Loop bullets added in this iteration are all about severity, none about voice."
+    },
+    "finding_severity_discipline": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Large lift from v0=2.0 — this iteration directly targets the criterion. Instruction #14 (agent.py:234-239) replaces the bare 'Prioritize issues using: Blocker, High, Medium, Nit.' with full Nielsen-style behavioral anchors: Blocker = persona cannot complete stated core_journey without external help; High = friction materially threatens the stated business_goal; Medium = avoidable effort with no business_goal threat; Nit = polish / no journey impact. Critically, the rubric explicitly forbids 'High' as a default ('most findings are Medium unless they meet the specific tests below') — directly counteracts blocker-inflation. Each finding's impact_on_user + impact_on_business MUST establish frequency + magnitude + persistence, with an explicit downgrade instruction if the triad is not visible. The Reflection Loop adds a blocker-cap ('at most one Blocker per 5 findings unless the journey is genuinely broken') and an 'if every finding is High, downgrade the weakest' rule (agent.py:252-253). Remaining headroom: (a) no response-side code that enforces the blocker-cap — purely instruction-level; (b) no schema-level severity_justification field so the triad is not structurally required; (c) improvement_direction still has no concrete-change enforcer. But the prompt-level calibration is now best-practice."
+    },
+    "scoring_rubric_calibration": {
+      "score": 2.25,
+      "max": 5,
+      "reasoning": "Essentially unchanged from v0=2.0, with a marginal lift from lower temperature. SCORING_DIMENSIONS (agent.py:79-88) still lists 8 bare dimension names. The packet '## Scoring Dimensions' section (agent.py:213-214) still surfaces them as a flat bullet list with no per-dimension definition or per-score-level anchor. No score/reason consistency check in validate_review_output. The 1–5 integer range remains enforced only structurally via _schema_from_template's int==1 trick (agent.py:130-132), which does nothing for calibration. Temperature=0.1 (gemini.py:72) may very slightly reduce central-tendency variance, but without anchors the model still has no way to differentiate a 3 from a 4 on task_clarity, so the classic collapse-to-3 pattern is unmitigated."
+    },
+    "business_goal_anchoring": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Unchanged from v0. FUNDAMENTAL EVALUATION FRAMEWORK (agent.py:23-37) and Execution Instructions 1, 9, 15 still force business-goal anchoring. Reflection Loop bullets 'EVERY recommendation is tied to the stated business goal or persona' (agent.py:249) and 'If the page has off-topic content... recommends removing/de-emphasizing it' (agent.py:251) are preserved. Schema still requires expected_business_outcome on quick_wins + structural_fixes. No new validator checks token-overlap between expected_business_outcome and brief.business_goal, and no effort-tier coherence check (a quick_win with effort=high would still pass). The severity rubric's language ('directly threatens the stated business_goal') adds a small reinforcement to business-goal salience but does not structurally detect orphan recommendations."
+    },
+    "validation_semantic_coverage": {
+      "score": 2.0,
+      "max": 5,
+      "reasoning": "Unchanged from v0. validate_review_output (gemini.py:190-198) still checks only that four top-level keys are non-empty and that at least one of strengths/findings is populated — a stub finding {priority:'Blocker', title:'Issue'} with every other field missing would still pass because findings is non-empty. journey_stage in review-output-schema.json is still bare 'string', not enum-constrained to the 7 JOURNEY_STAGES in agent.py:68-76. persona_voice non-emptiness is still unchecked. The iter-1 gemini.py refactor (GeminiPermanentError / GeminiRateLimitError / GeminiTransientError + _exponential_backoff + _finish_reason) is infrastructural hardening of the HTTP layer — it does not expand semantic validation. Retry notes fed back into previous_failure remain generic ('The previous response was structurally empty: {validation_error}. Return a populated review.' — gemini.py:192), so the model still does not learn per-finding-level failure reasons."
+    }
+  },
+  "aggregate_score": 3.06,
+  "target_score": null,
+  "feedback": "Iteration 1 delivered the severity-anchor fix cleanly and correctly: the Blocker/High/Medium/Nit rubric now carries behavioral anchors tied to the stated core_journey and business_goal, explicitly forbids 'High' as a default, requires Nielsen's frequency/magnitude/persistence triad to be reconstructible from impact_on_user + impact_on_business, and the Reflection Loop enforces a blocker-cap and downgrade discipline. finding_severity_discipline jumps 2.0 → 4.0. The gemini.py error classification + exponential backoff work is outside the review-quality criteria and correctly scoped. However, two of three active critical criteria received no direct fix: persona_grounding_and_voice is flat (no voice reminder near Execution Instructions / Reflection Loop), and evidence_grounding only got the plain-text-fallback competitor-rule echo plus temperature tightening — the big structural lever (threading webpage_context through run_review + substring check + competitor token scan) is still unbuilt. validate_review_output remains the stub from v0. Aggregate 2.68 → 3.06. Budget note: 4 iterations remaining. Next iteration should bundle (a) voice carry-through in agent.py, which is a 10-line prose addition and cheap, with (b) the webpage_context threading + evidence substring check in service.py + gemini.py, which is the single highest-leverage remaining change and unlocks both evidence_grounding and validation_semantic_coverage simultaneously.",
+  "priority_fixes": [
+    {
+      "criterion": "evidence_grounding",
+      "severity": "high",
+      "target_files": ["src/personalens/service.py", "src/personalens/gemini.py"],
+      "suggestion": "Thread webpage_context into run_review: in service.py:32 change 'packet, _webpage_context = build_packet_for_brief(...)' to keep the context, then pass it as a kwarg into run_review. In gemini.py add a post-parse _check_evidence_grounding(parsed, webpage_context) that (a) for each finding, checks whether any 3-word window of finding.evidence appears case-insensitively in webpage_context, or the evidence explicitly admits 'not observable / JS-rendered / dynamic'; (b) a _check_competitor_leak(parsed, brief.competitors) that string-scans the serialized JSON and rejects any brand/product token not on the allowlist or not appearing in webpage_context. On failure, build a structured Retry Note that names the offending finding.title and the specific rule violated, then loop. This is the single biggest remaining evidence-grounding lift and simultaneously bolsters validation_semantic_coverage."
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "severity": "high",
+      "target_files": ["src/personalens/agent.py"],
+      "suggestion": "In build_review_packet, immediately before '## Execution Instructions' (around agent.py:216), insert a voice reminder line: f'> Voice check: Every persona_voice and persona_reason field MUST be a first-person quote from {persona.name} using at least one of these anchors: {\", \".join(persona.voice[:3])}. Auditor-voice sentences must be rewritten before finalizing.' Add a matching Reflection Loop bullet at agent.py:253: 'Voice audit: Re-read every persona_voice and persona_reason — if any could fit any generic UX audit, rewrite to use a specific voice anchor and first-person phrasing.' This exploits the voice anchors already required by ReviewBrief.validate without any schema change."
+    },
+    {
+      "criterion": "finding_severity_discipline",
+      "severity": "medium",
+      "target_files": ["review-output-schema.json", "src/personalens/gemini.py"],
+      "suggestion": "Iteration 1 delivered the prompt-level anchors. Remaining headroom is structural enforcement: (a) add a 'severity_justification' string field to each finding in review-output-schema.json so the Nielsen triad is structurally required (current schema accepts justification implicitly inside impact_on_user + impact_on_business); (b) in validate_review_output, count Blocker findings and fail validation if > max(1, len(findings)//5) unless at least one finding's problem text contains a hard-block phrase — mirrors the Reflection Loop cap as code, so it actually binds; (c) ensure improvement_direction is not a generic stub (e.g., reject if it starts with 'improve', 'enhance', 'make better' with no noun phrase). These close the gap from 4.0 toward 5.0 once the prompt-level work settles."
+    }
+  ]
+}

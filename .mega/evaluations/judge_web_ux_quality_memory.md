@@ -143,3 +143,51 @@ Target score: **4.2** (realistic within 5-iteration budget given high-leverage m
 - Check that confidence pill contrast was addressed (or note as remaining).
 - Mid phase (iter 2+) adds `visual_language` + `responsive_layout` to active list — start watching CSS token duplication, breakpoint rationale, confidence pill contrast.
 - Late phase (iter 4) adds `i18n_bilingual` + `frontend_code_quality` — expect the big bilingual-propagation fix to land then if not earlier.
+
+---
+
+## Iteration 1 Observations (2026-04-20)
+
+**Diff scope this iter:** only `src/personalens/agent.py` (severity rubric tightening) and `src/personalens/gemini.py` (error taxonomy, retry/backoff, generationConfig schema, temperature=0.1). Both are out-of-scope for this judge.
+
+**webapp.py state:** unchanged, 1098 lines — verified via `wc -l` and targeted greps:
+- `prefers-reduced-motion` → 0 matches (still missing)
+- `visibilitychange` → 0 matches (still missing)
+- `role="alert"` → 0 matches (still missing)
+- `aria-live` → 0 matches (still missing)
+- `aria-pressed` → 0 matches (still missing)
+- `<main>` / `<header>` / `<nav>` / `<footer>` → 0 matches (still missing)
+- `location.reload()` → 2 matches (L49 in poller, L829 on Regenerate — both still broken)
+- `@keyframes` → 3 blocks + 1 inline at L450 (4 total, all without reduced-motion fallback)
+- `data-ko` → 25 matches all within render_form L353-L412; render_persona_card + render_result remain monolingual EN
+
+**Conclusion:** No criterion moves. Aggregate remains 3.315. Baseline maintained — no regressions either.
+
+### Scores (iteration 1)
+
+| Criterion | v0 | v1 | Δ |
+|---|---|---|---|
+| form_ux_flow | 3.5 | 3.5 | 0 |
+| loading_feedback | 3.0 | 3.0 | 0 |
+| visual_language | 4.0 | 4.0 | 0 |
+| responsive_layout | 3.5 | 3.5 | 0 |
+| accessibility | 3.0 | 3.0 | 0 |
+| i18n_bilingual | 2.5 | 2.5 | 0 |
+| frontend_code_quality | 3.5 | 3.5 | 0 |
+| **Aggregate** | **3.315** | **3.315** | **0** |
+
+### Carry-forward priority fixes for iter 2+
+
+Same six as v0, unchanged in severity:
+1. (accessibility, high) Propagate data-en/data-ko + on-load setLang into persona card and result.
+2. (accessibility, high) Semantic landmarks + role="alert"/aria-live + aria-pressed on lang toggle.
+3. (loading_feedback, high) prefers-reduced-motion fallback for 4 keyframes.
+4. (loading_feedback, medium) Pause poll on document.hidden; soften recovery reload.
+5. (form_ux_flow, high) Fix Regenerate button to re-POST /persona.
+6. (form_ux_flow, medium) Visible `*` required indicator + aria-busy disable on submit.
+
+### Watch for iter 2 (mid phase — adds visual_language + responsive_layout to active)
+
+- Expect fixer to start picking off the quick accessibility wins first. If none land by iter 2, flag as a delivery risk — we have 3 iterations left and the target was 4.2.
+- Confidence pill contrast (L669) will become active under visual_language — bump to priority_fixes if still unfixed.
+- Breakpoint rationale (860/768/720 with no content basis) will become active under responsive_layout — same rule.
