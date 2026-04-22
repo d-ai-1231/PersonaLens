@@ -1,0 +1,86 @@
+{
+  "evaluator_id": "review_quality",
+  "iteration": 4,
+  "iteration_budget": { "total": 5, "current": 4, "phase": "late" },
+  "active_criteria": [
+    "evidence_grounding",
+    "persona_grounding_and_voice",
+    "finding_severity_discipline",
+    "scoring_rubric_calibration",
+    "business_goal_anchoring",
+    "validation_semantic_coverage"
+  ],
+  "deferred_criteria": [],
+  "scores": {
+    "evidence_grounding": {
+      "score": 4.25,
+      "max": 5,
+      "reasoning": "Unchanged from iter 3. Post-filter stack intact: _check_evidence_grounding (gemini.py:116-149) with 3-gram substring match + _UNOBSERVABLE_PHRASES escape hatch, _check_competitor_leak (gemini.py:152-203) with grammatical _TITLECASE_MULTIWORD regex + _PACKET_SAFELIST + word-boundary padding, both wired into run_review (gemini.py:206+). Competitor rule duplicated into plain-text fallback. No v4 changes to this criterion — residuals same as v3 (strengths scanned for competitor leak but not for evidence grounding; paraphrased evidence can trigram-pass; soft-accept at final attempt silent)."
+    },
+    "persona_grounding_and_voice": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Unchanged from iter 2. Voice Check block remains just before Execution Instructions (agent.py:216 region per memory); Reflection-Loop voice-audit bullet intact. No v4 diff in this area. Residuals: review_summary.first_impression / why_it_matters not explicitly covered by voice audit, no code-level voice probe, service.py fallback persona still ships generic anchors ('practical, time-conscious, skeptical, low-hype'). Schema's `{reason, score}` ordering (see below) has incidental halo — score reasons are now more likely to cite persona-keyed rubric anchors — but too indirect to credit here."
+    },
+    "finding_severity_discipline": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Unchanged from iter 1. Nielsen-triad severity anchors + 'most findings are Medium' + Reflection-Loop blocker-cap + downgrade instruction intact at agent.py:234-253. Schema's journey_stage enum enforcement (new in v4) indirectly tightens severity defensibility because the Nielsen triad instructions explicitly reference journey stage — but the enum doesn't reach the severity logic itself, so no direct lift. Residual: no code-level blocker-cap enforcement."
+    },
+    "scoring_rubric_calibration": {
+      "score": 4.1,
+      "max": 5,
+      "reasoning": "Iter-3 per-dimension 1/3/5 rubric block at agent.py:216-250 intact. v4 strengthens this indirectly via review-output-schema.json property reordering: each score object is now `{reason, score}` with propertyOrdering enforced by _schema_from_template (agent.py:117) at Gemini's constrained-decoding layer. This structurally forces reason-before-number chain-of-thought — the model MUST write its qualitative justification before committing the integer, which is the textbook fix for score/reason contradictions. Small but real lift (+0.1). Residuals: still no code-level score/reason contradiction check, no flat-score detection, no per-score evidence-substring check."
+    },
+    "business_goal_anchoring": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Unchanged from iter 0. Schema still requires expected_business_outcome per quick_win/structural_fix; prompt still surfaces business_goal; severity anchors reference business_goal. But no threaded brief.business_goal + token-overlap check (rq-local-003 second half) has landed — iter 4 chose journey_stage enum instead of this candidate from the iter-3 roadmap. Highest remaining easy win for this criterion."
+    },
+    "validation_semantic_coverage": {
+      "score": 3.25,
+      "max": 5,
+      "reasoning": "v4 directly targets this criterion via schema-level journey_stage enum enforcement in review-output-schema.json lines 36 and 45 (both strengths and findings items). _schema_from_template (agent.py:138-143) expands the pipe-string into {type:'string', enum:[...]}, so Gemini's constrained-decoding layer now rejects any of the previously-silently-polluting values ('onboarding', 'checkout', 'unknown', 'na'). This is strategy rq-local-005 landed in full, addressing one of the three iter-0 cheapest-lift gaps for this criterion. Additionally, the {reason, score} property reordering (schema lines 24-31) with propertyOrdering enforcement improves score-object semantic discipline. Lift: +0.5 (2.75 → 3.25). Residuals that cap this at 3.25: (a) validate_review_output (gemini.py:351-359) remains structural-only — a finding with everything but priority still passes; (b) per-finding FINDING_REQUIRED non-empty floor from rq-local-003 is still not in place; (c) no business-goal token-overlap check; (d) split-enforcement risk (semantic in run_review vs structural in validate_review_output) persists and is now 3 iterations old."
+  },
+  "aggregate_score": 4.005,
+  "target_score": null,
+  "feedback": "Iter 4 landed the cheapest-effort / highest-cost-per-byte fix of the optimization: replacing two bare 'string' literals with pipe-enum syntax activated Gemini constrained decoding for journey_stage on both strengths and findings. Combined with the subtler {reason, score} property reordering (reason-before-number CoT), v4 pushed the aggregate across the 4.0 target line. Trajectory: 2.68 → 3.06 → 3.725 → 3.90 → 4.005. With one iteration left (iter 5), the two highest-ROI remaining fixes are (1) per-finding FINDING_REQUIRED non-empty floor inside validate_review_output — closes the split-enforcement risk and directly lifts validation_semantic_coverage — and (2) threading brief.business_goal + token-overlap check to lift business_goal_anchoring. Together these would push aggregate toward 4.2.",
+  "priority_fixes": [
+    {
+      "criterion": "validation_semantic_coverage",
+      "severity": "high",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Replace the structural-only validate_review_output (gemini.py:351-359) with a per-item semantic floor as outlined in rq-local-003. Specifically: for each findings[i], assert FINDING_REQUIRED={'priority','title','journey_stage','problem','persona_voice','evidence','impact_on_user','impact_on_business','improvement_direction'} are present AND non-empty strings; assert priority is in {'Blocker','High','Medium','Nit'} (the schema already enforces this, but duplicate in the validator to catch the plain-text fallback path where responseSchema isn't applied — gemini.py check around lines 309-311); import JOURNEY_STAGES from agent and assert finding['journey_stage'] ∈ JOURNEY_STAGES for defense-in-depth. Also add the same floor to strengths items. This closes the split-enforcement risk that's been open since iter 2 and is the last remaining cheap lift for validation_semantic_coverage."
+    },
+    {
+      "criterion": "business_goal_anchoring",
+      "severity": "medium",
+      "target_files": ["src/personalens/gemini.py", "src/personalens/service.py"],
+      "suggestion": "Thread brief.business_goal through run_review the same way webpage_context and allowed_competitors were threaded in iter 2. Add _check_business_goal_overlap(parsed, business_goal) that tokenizes business_goal (strip stopwords {'the','a','an','to','and','or','of','in','for','on','with','by','from'}), then for each prioritized_improvements.quick_wins[i].expected_business_outcome and .structural_fixes[i].expected_business_outcome checks that at least one content token from business_goal appears (casefold, whitespace-normalized). Flag any item whose expected_business_outcome has zero overlap — this catches 'business-goal-orphan' recommendations that sound plausible but don't tie to the brief. Feed failures into the existing Retry Note pipeline at gemini.py:~290."
+    },
+    {
+      "criterion": "evidence_grounding",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Small polish: extend _check_evidence_grounding (gemini.py:116-149) to also scan strengths[i].evidence (currently only findings are checked). Strengths with hallucinated copy quotes are the same trust hazard as findings with hallucinated copy quotes. Cost: ~5 lines. Also log the soft-accept case at gemini.py:296-297 (iter 2 memory noted this is currently silent) with a structured warning that includes the semantic_issues list — so soft-accepted reviews are auditable."
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "severity": "low",
+      "target_files": ["src/personalens/agent.py"],
+      "suggestion": "Polish: extend the Reflection-Loop voice audit to include review_summary.first_impression and review_summary.why_it_matters. Currently the voice audit targets persona_voice + persona_reason only — but the summary fields are the first thing a reader sees in the markdown report and they tend to drift into auditor voice. One-line addition to the Reflection Loop."
+    },
+    {
+      "criterion": "finding_severity_discipline",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Polish: add a code-level blocker-cap check in run_review (or in the new semantic validator from priority_fixes[0]) — if findings with priority=='Blocker' > max(1, len(findings)//5), emit a Retry Note requesting the model to demote the weakest blockers per the existing prose rule at agent.py:252. This promotes the prompt-side blocker-cap to a deterministic post-check."
+    },
+    {
+      "criterion": "scoring_rubric_calibration",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Polish: add a simple flat-score heuristic — if len({s['score'] for s in data['scores'].values()}) <= 2, emit a Retry Note citing central-tendency ('your 8 scores collapsed to {n} distinct values; the rubric anchors require differentiation where evidence differs'). Cheap guardrail against the failure mode the iter-3 rubric was built to prevent but can't itself enforce."
+    }
+  ]
+}

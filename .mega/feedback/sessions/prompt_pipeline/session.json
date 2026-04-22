@@ -1,0 +1,47 @@
+{
+  "session_id": "prompt_pipeline",
+  "event": "optimize/step4/curate",
+  "created_at": "2026-04-20T00:00:00Z",
+  "wisdoms": [
+    {
+      "id": "0c45632938aff2c2:0c45632938aff2c2:0c45632938aff2c2",
+      "name": "HTTP Status Classification and Exponential Backoff with Jitter",
+      "score": 0.95
+    },
+    {
+      "id": "ef5cbec0bbe75670:ef5cbec0bbe75670:ef5cbec0bbe75670",
+      "name": "Retry Loop with Error Class Discrimination",
+      "score": 0.90
+    },
+    {
+      "id": "7173f0f78b3ec9ad:7173f0f78b3ec9ad:7173f0f78b3ec9ad",
+      "name": "Response Caching to Eliminate Redundant API Calls",
+      "score": 0.90
+    },
+    {
+      "id": "f16fac9d3ec5b92d:f16fac9d3ec5b92d:f16fac9d3ec5b92d",
+      "name": "Prompt Deduplication via Static Block Isolation",
+      "score": 0.85
+    },
+    {
+      "id": "10cf3d1b2b1b4383:10cf3d1b2b1b4383:10cf3d1b2b1b4383",
+      "name": "Native Structured Output via responseSchema API Attachment",
+      "score": 0.95
+    },
+    {
+      "id": "d51bf699a25a14f1:d51bf699a25a14f1:d51bf699a25a14f1",
+      "name": "Cache-Aside Pattern for Persona and Webpage Memoization",
+      "score": 0.90
+    },
+    {
+      "id": "95d85c9d68c6a878:95d85c9d68c6a878:95d85c9d68c6a878",
+      "name": "Deterministic Generation Config and Temperature Control",
+      "score": 0.88
+    }
+  ],
+  "portfolio": {
+    "situation": "Evaluating a two-stage Gemini LLM pipeline (PersonaLens persona enrichment + website review) from the Prompt & LLM Pipeline Engineering perspective.",
+    "top_k": 7,
+    "source": "local_wisdom_store"
+  }
+}

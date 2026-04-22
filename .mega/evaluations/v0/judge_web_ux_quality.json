@@ -1,0 +1,94 @@
+{
+  "evaluator_id": "web_ux_quality",
+  "iteration": 0,
+  "iteration_budget": { "total": 5, "current": 0, "phase": "early" },
+  "active_criteria": ["form_ux_flow", "loading_feedback", "accessibility"],
+  "deferred_criteria": ["visual_language", "responsive_layout", "i18n_bilingual", "frontend_code_quality"],
+  "scores": {
+    "form_ux_flow": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L363-401 — fields ordered service_name → service_url → service_type → core_journey → persona_description → business_goal → problems → competitors, which roughly matches mental-model (easy → harder) and PRD §7. All 7 inputs have programmatic <label for=\"...\"> (L365, L368, L371, L374, L378, L382, L386, L390, L394) — no placeholder-as-label violations. User values HTML-escaped via html.escape in v() helper (L182-183, L729, L733-736). Two-stage flow is present (/persona then /review) with JS fetch on form submit (L457-474). Regenerate button exists (L829) but is merely location.reload() — does not re-call /persona with the same form state, so the user's inputs will be lost on regenerate because the form data is stored in /persona response's hidden fields only. Persona is NOT actually editable in the confirmation view (L783-822 displays values as read-only <div>/<ul>, no textareas). Submit button (L400) has no disabled state or aria-busy during POST — showPersonaLoading (L437-452) replaces the body, which practically prevents double-submit but leaves a brief window. No visible required indicator (asterisk), no inline validation feedback beyond browser-default HTML5. Error echo-back via render_form(error=...) at L185 is escaped and appears above form."
+    },
+    "loading_feedback": {
+      "score": 3.0,
+      "max": 5,
+      "reasoning": "Skeleton at L869-1098 excellently mirrors real result structure by reusing render_result() with placeholder content — best-in-class structural parity, no CLS on content swap. Shimmer keyframe at L960-963 with 1.6s cycle (in recommended 1.5-2s range). Soft neutral palette #ebe5d8 → #f6f1e7 (L1004, L1021, L1049) — appropriate. Phase text 'Generating review — this may take up to a minute' with bouncing dots at L1066-1079 (good). CRITICAL: No @media (prefers-reduced-motion: reduce) fallback for any of skel-shimmer (L960), spin (L450), skel-fade-in (L964), skel-dot-anim (L1076) keyframes — WCAG 2.3.3 / user preference violation. Health polling at 1.5s (L63) never checks document.hidden / visibilitychange — drains battery and wastes requests when tab is hidden. On recovery, full window.location.reload() (L49) could discard in-progress review state. Status banner uses inline style=\"\" properties (L28-38) — not CSS classes. Banner text 'Server restarting. Reconnecting automatically...' is English-only (L57), not bilingual. Only one phase message — no progressive 'Crawling…' → 'Analyzing persona…' → 'Generating review…' sequencing for the 30-60s wait (NN/g recommendation for waits >10s)."
+    },
+    "visual_language": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Earth-tone palette applied via CSS custom properties on form (L193-202: --bg #f4efe6, --accent #0e6b58, --accent-2 #d97a2b), result (L599), and persona (L746) — palette is consistent across pages but duplicated (tokens not shared from a single source). Pretendard loaded via CDN with robust fallback stack: 'Pretendard', system-ui, -apple-system, sans-serif (L206, L601, L748). Typography mostly in rem/em (h1 clamp(1.8rem,4vw,3.5rem) L230, .sub 1.05rem L237, badges .82rem L338, score chips .78-.85rem). Base body font-size is 14px at L601 (result) — should be rem/em. Confidence pill (L669), score chips in sc-num (L527) with numeric '/5' text, and priority badges (Blocker/High/Medium/Nit with priority_colors map at L506-511) all pair color with text — passing WCAG 1.4.1 use-of-color. Badge/chip contrast visually reasonable but confidence pill uses 8-digit hex alpha like {conf_color}18 (L669) giving a ~10% tint — non-text contrast ratio likely <3:1 against the page, borderline WCAG 1.4.11. Spacing tokens partially consistent (border-radius 999px for pills, 14-24px for cards). Pretendard-dynamic-subset covers Latin + CJK."
+    },
+    "responsive_layout": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "<meta viewport content=\"width=device-width, initial-scale=1\"> present on all three templates (L190, L596, L742). Breakpoints defined: 860px for form grid collapse (L342), 768px for result row-2/row-3 (L656), 720px for persona grid (L772) — three different values with no documented content-rationale for the split (mildly arbitrary). Mobile-first would use min-width; this stylesheet uses max-width throughout (not best-practice per MDN/Framer 2026, but functionally correct). Form inputs width:100% (L287). Tips sidebar collapses via position:static when grid falls to 1fr (L344). Badge/chip padding 3-12px — touch targets on lang-switch buttons ~28×28 (L248-258: padding 6px 12px + ~12px font ≈ ~28px tall), BELOW WCAG 2.2 SC 2.5.8 24×24 minimum comfortably but passes; action buttons .btn 10-20px padding pass. No verification at 360px viewport — badge + lang-switch flex row (L223-227) may wrap but no explicit min-width test. max-width:100% not explicitly set on any media. No horizontal scroll protection (overflow-x:hidden) on body."
+    },
+    "accessibility": {
+      "score": 3.0,
+      "max": 5,
+      "reasoning": "POSITIVES: All form inputs have programmatic <label for=\"...\"> with matching ids (L365-394) — passes SC 1.3.1/3.3.2. URL input uses type=\"url\" (L369). HTML-escaped user echo prevents XSS. document.documentElement.lang IS updated on toggle at L428 (initially missed check — verified present). Focus states rely on browser default (not disabled). Color pairs --muted #6b6258 on --bg #f4efe6 ≈ 5.5:1 and --accent #0e6b58 on white ≈ 5.3:1 both pass AA. GAPS: No semantic landmarks (<main>, <header>, <nav>, <footer>) — just divs on all three templates (L350-416, L664-713, L776-835). Persona card (L739) and result page (L593) set <html lang=\"en\"> statically and have NO bilingual content or lang toggle — screen readers on KO users get wrong pronunciation. Error block (L185) is a styled <div class=\"error\"> with no role=\"alert\"/aria-live — SR users won't hear validation failures. Lang-switch buttons (L355-356) use inline onclick=, lack aria-pressed state, and the container has no aria-label=\"Language\". Health-polling banner (L24-39) created via JS has no role=\"status\"/aria-live. No :focus-visible overrides — buttons with rounded pills may have weak default outlines on dark backgrounds. Score bars (L529, sc-fill width {s*20}%) are purely decorative without aria-valuenow/role=\"progressbar\". The 'confirm-form' submit button (L828) uses emoji 👍 as part of visible text — emoji has no aria-hidden, may be read aloud redundantly. Regenerate button (L829) uses inline onclick=\"location.reload()\" — reload does NOT regenerate persona (which requires /persona POST with the same form), misleading affordance."
+    },
+    "i18n_bilingual": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "Form page (L349-416) has thorough data-en/data-ko coverage across badge, h1, sub, every label, every hint, submit button, tips list. setLang() at L418-430 swaps textContent, updates placeholders (L422-424), toggles active class, sets document.documentElement.lang, and persists to localStorage under key 'qra-lang' (L429). Toggle labels 'English' / '한국어' each in own script (L355-356) — good per Terrill Thompson guidance. showPersonaLoading (L439-451) is bilingual. Skeleton phase message (L1085-1088) is bilingual via document.documentElement.lang. MAJOR GAP: Persona card (render_persona_card L719-866) is 100% English-only — no data-en/data-ko attributes on 'Step 2 of 3', 'Does this persona look right?', field labels (Job to be done, Context, Goals, Pain points, etc.), action buttons ('Looks good, run review', 'Regenerate', 'Back to form'), hint 'The review may take up to a minute'. Result page (render_result L482-716) is 100% English — score_labels dict (L494-503) Latin-only, section headers ('📊 Scores', '✅ Strengths', '🔍 Findings', '🚀 Improvements', '❓ Open questions', 'Run another review') all hardcoded. Auto-reconnect banner message 'Server restarting. Reconnecting automatically...' (L57) hardcoded English. Persona and result pages do NOT read localStorage 'qra-lang' on load, so a user who selected KO on the form sees the rest of the flow in English — significant flow-breaking inconsistency. No navigator.language fallback in detection (L432-434) — only localStorage → default 'en'. localStorage key 'qra-lang' is a legacy name inconsistent with 'PersonaLens' brand — minor."
+    },
+    "frontend_code_quality": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "POSITIVES: Inline <style>/<script> blocks rather than scattered inline attributes for static styles. CSS custom properties for palette tokens (L193-202, L599, L746). JS is modern: const/let throughout, arrow functions, addEventListener (L457, L840, DOMContentLoaded L1082), IIFE pattern for isolation (L431, L454, L837). No jQuery, no unused libraries. HTML valid: DOCTYPE html, meta charset utf-8, meta viewport on every template. User-supplied values HTML-escaped via html.escape (v() at L182-183, esc() at L490-491, L721-722). GAPS: Inline onclick= attributes on 3 buttons (L355, L356, L829) — CSP-unfriendly and mixes concerns. Inline style=\"\" attributes at L28-38 (banner styling — 11 properties each), L443-449 (persona loading overlay — ~10 properties), L472, L528-529 (score bar dynamic color — legitimate since value-driven), L548, L669, L812, L818, L859. document.open()/document.write()/document.close() used at L468-469, L845-847, L855-857 — discouraged by WHATWG (triggers parser reset, breaks async scripts). CSS variables duplicated across three templates instead of a shared token file — acceptable given single-file architecture but not DRY. Stale comment 'Step 1: Generate persona first' at L461 references flow step that was later renumbered ('Step 2 of 3' at L778 suggests 3-step flow). No commented-out dead code blocks. f-string templating risks injection if not all interpolations pass through esc() — L667-711 appears fully escaped via esc(). No obvious dead code."
+    }
+  },
+  "aggregate_score": 3.315,
+  "target_score": 4.2,
+  "target_rationale": "Three high-leverage fixes dominate the gap to 4.2: (1) propagate bilingual support and <html lang> toggle into render_persona_card and render_result (raises i18n_bilingual from 2.5 → 4.5 and closes accessibility SC 3.1.1/3.1.2 gaps on non-form pages — roughly +0.1 aggregate each); (2) add @media (prefers-reduced-motion: reduce) fallback disabling skel-shimmer/spin/skel-fade-in/skel-dot-anim keyframes and add document.hidden / visibilitychange pause to the health poller (raises loading_feedback from 3.0 → 4.5, +0.27); (3) add semantic landmarks (<main>, <header>), role=\"status\"/aria-live on the error block and polling banner, aria-pressed on lang toggle, and make the regenerate button actually re-POST /persona instead of location.reload() (raises accessibility from 3.0 → 4.0 and form_ux_flow from 3.5 → 4.0, +0.29). Removing inline onclick= and migrating to addEventListener pushes frontend_code_quality to 4.0. Each fix is a focused <1h edit to webapp.py; within a 5-iteration budget 4.2 is realistic without a framework rewrite."
+  ,
+  "feedback": "PersonaLens has an unusually strong visual identity for a no-framework inline-HTML app: the earth-tone palette is applied consistently via CSS custom properties, Pretendard typography loads with a safe fallback, the two-stage form → persona-confirmation → review flow is a thoughtful UX choice that gives the user agency before a 30-60s wait, and the skeleton page cleverly reuses render_result() so there is zero content-layout shift when the real result arrives — that is best-in-class. The form itself has proper <label for=...> associations on all seven inputs, HTML-escaped echo-back, and reasonable field ordering. However, three systemic weaknesses drag the aggregate score down. First, bilingual support is form-page-only: the persona card and result page are entirely English, so a Korean user who toggles to 한국어 on the form immediately drops back into English on step 2 and step 3 — this is both a UX and an accessibility regression (SC 3.1.1/3.1.2). Second, motion accessibility is missing: skel-shimmer, spin, skel-fade-in, and skel-dot-anim keyframes have no prefers-reduced-motion fallback, which is a common and mechanical WCAG miss. Third, the health-polling loop runs every 1500ms regardless of document.hidden and uses full window.location.reload() on recovery — it should pause on visibilitychange and soft-recover if possible. Smaller but real: the 'Regenerate' button on the persona card does nothing useful (location.reload() does not re-call /persona), inline onclick= handlers and style=\"\" attributes appear in several places, semantic landmarks (<main>, <header>) are absent, error/status elements lack role=\"alert\"/aria-live, and the confidence pill uses an 8-digit hex alpha that likely fails 1.4.11 3:1 non-text contrast.",
+  "priority_fixes": [
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Add semantic landmarks to all three templates: wrap the form-page content (L350-416) in <main>, the hero block in <header>, and the lang-switch in <nav aria-label=\"Language\">. Repeat for render_result (L664) and render_persona_card (L776). Add role=\"alert\" aria-live=\"assertive\" to the .error div at L185 so screen readers announce validation failures. Add role=\"status\" aria-live=\"polite\" to the server-status-banner created in AUTO_RECONNECT_SCRIPT (L23-42). Add aria-pressed=\"true|false\" to the two lang-switch buttons (L355-356) and update it inside setLang() (L418-430)."
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Propagate <html lang> to render_persona_card (L739) and render_result (L593). Either set lang from a persisted form field / cookie / query param, or read localStorage.qra-lang in an early inline script and set document.documentElement.lang before first paint. Currently both pages hardcode lang=\"en\" regardless of user preference, violating WCAG SC 3.1.1 Language of Page for Korean users."
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Replace inline onclick=\"setLang('en')\" / onclick=\"setLang('ko')\" on L355-356 and onclick=\"location.reload()\" on L829 with addEventListener blocks in the existing <script> section. This removes CSP friction and centralizes behavior. While editing L829, replace location.reload() with an actual re-POST to /persona reusing the hidden form fields, since 'Regenerate' currently does not regenerate the persona."
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Add @media (prefers-reduced-motion: reduce) { .sc-fill, .conf, .hero h1, .verdict, .sc-label, .sc-num, .sc-reason, .cf strong, .cf-detail, .cf-action, .cf-stage, .cf-pri, .imp strong, .imp-meta, .oq, .fi-item::after, .skel-dot, body { animation: none !important; } } inside the skeleton_css block at L958-1080. Also add a reduced-motion guard for the spin keyframe at L450 (persona loading overlay) and the fade-in at L964. This is a mechanical two-line addition that closes a common a11y audit finding."
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Make the health poller at L44-63 pause when document.hidden === true: wrap the setInterval body in `if (document.hidden) return;` and add a `document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });` to force an immediate re-poll when the tab becomes visible. Soften the recovery path from a full window.location.reload() to a conditional reload only when failed was true for >N seconds, to avoid losing a long-running review-result view on a transient blip."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "In the form submit handler at L457-474, set the submit button to disabled + aria-busy=\"true\" and update its data-en/data-ko label to 'Generating persona…' / '페르소나 생성 중…' BEFORE calling showPersonaLoading(). This provides a visible pre-navigation confirmation that the click registered, and prevents any edge-case double-submit during the fetch window. Also add a visible required indicator (e.g., an asterisk after the label text for required fields at L365, L368, L371, L374, L378) paired with a text legend 'Required fields marked with *' so users know which of the seven fields are mandatory before submit."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Make the persona 'Regenerate' button actually regenerate: instead of location.reload() at L829, POST to /persona again with the same hidden form fields and replace the body with the new render_persona_card output. Currently pressing Regenerate simply reloads the current page, which re-renders the SAME persona card — this is a confusing no-op that fails Nielsen heuristic #1 (visibility of system status) and #4 (consistency of affordance)."
+    }
+  ],
+  "tool_fallback": "static_analysis_only"
+}

@@ -1,0 +1,106 @@
+{
+  "evaluator_id": "web_ux_quality",
+  "iteration": 4,
+  "iteration_budget": { "total": 5, "current": 4, "phase": "late" },
+  "active_criteria": [
+    "form_ux_flow",
+    "loading_feedback",
+    "visual_language",
+    "responsive_layout",
+    "accessibility",
+    "i18n_bilingual",
+    "frontend_code_quality"
+  ],
+  "deferred_criteria": [],
+  "scores": {
+    "form_ux_flow": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "webapp.py:L839,L873-L903 — Regenerate button is now functional: id='regenerate-btn' + addEventListener click handler serializes FormData minus persona_json, POSTs to /persona with x-www-form-urlencoded, document.write()s the server response; aria-disabled+disabled re-entrancy guard and label change to '⏳ Regenerating…' in-flight. Error path re-enables and alerts. Closes the long-standing Nielsen #1/#4 gap flagged since baseline. Field order, labels, escaping, two-stage flow (L850-L871 confirm-form submit → skeleton → review) all remain solid. Not a 4.5+ because required-field visible '*' indicator is still absent (L366-L398), primary submit button does not explicitly set aria-busy/disabled during the persona POST (showPersonaLoading overlay covers the page but the button itself is not disabled before overlay swap), and three buttons still carry inline onclick= for lang-switch (L355-L356) vs the new regenBtn pattern — inconsistency in event binding style."
+    },
+    "loading_feedback": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L451-L455, L1085-L1108 — reduced-motion fallbacks (added iter 2) remain in place and cover all four @keyframes. Skeleton still mirrors the real result layout (L869-L1130). UNCHANGED this iter: visibilitychange grep returns 0 matches; window.location.reload() at L49 still triggers on any 200 from /health without session-recovery check (poller still wastes requests on hidden tabs and force-reloads mid-form state); no progressive phase text beyond a single 'generating…' message. These block a move to 4.0."
+    },
+    "visual_language": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Earth-tone palette (bg #f4efe6, accent #0e6b58, accent-2 #d97a2b) consistently applied via CSS custom properties at L193-202 / L599 / L746 (though still duplicated across 3 templates — DRY regression unresolved). Score chips and priority badges include text labels beside color swatches (passes WCAG 1.4.1). Pretendard loaded with system-font fallback. Confidence pill still uses 8-digit-hex alpha background `{conf_color}18` at L676 — ~10% tint that almost certainly fails WCAG 1.4.11 3:1 non-text contrast; render_result body font-size still 14px not rem (L608). Unchanged this iter."
+    },
+    "responsive_layout": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py: <meta viewport> present on all 3 templates. Three different breakpoints with no content-driven rationale: @media (max-width:860px) for form (L342), 768px for result (L663), 720px for persona (L779). Still desktop-first max-width queries rather than mobile-first min-width. Touch targets ≥32px pass 2.5.8. Tips sidebar collapses. Unchanged this iter."
+    },
+    "accessibility": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "webapp.py: semantic landmarks from iter 3 intact — <header>, <main>, <nav aria-label='Language'>, <section aria-labelledby='...'> with 5 aria-labelledby references on result card sections. aria-pressed on both lang buttons synced via setLang(). Error block role='alert' aria-live='assertive' at L185. The Regenerate handler's aria-disabled (L877,L897) is an appropriate Name/Role/Value signal for the in-flight state. NOT moved to 4.5+: <html lang='en'> still hardcoded on render_result (L600) and render_persona_card (L749) — SC 3.1.1 still fails in KO mode; polling banner at L24-L39 still lacks role='status'/aria-live='polite' and uses unconditional location.reload() on recovery; emoji section headers (📊 ✅ ❓ 🔍 🚀) at L705/L710/L714/L721/L726 not wrapped in aria-hidden; visually-hidden summary h2 uses inline style at L690 instead of a reusable .visually-hidden class; confidence pill non-text contrast still likely <3:1."
+    },
+    "i18n_bilingual": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "webapp.py: data-ko count 26, ALL inside render_form (L353-L412). render_persona_card (L719-L908) and render_result (L485-L724) still have zero data-en/data-ko attributes — including the newly-added Regenerate-in-flight label '⏳ Regenerating…' (L879) and the error string 'Regenerate failed: …' (L900), both English-only. Language preference persisted in localStorage['qra-lang'] on the form page only; persona + result pages do not read that key on load and do not call setLang(). A Korean user drops back into English after step 1 — unchanged since baseline. This is the bottom-scoring criterion and the single largest unlock remaining."
+    },
+    "frontend_code_quality": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py: the new Regenerate handler (L873-L903) is cleanly authored — const, arrow fn, addEventListener, FormData+URLSearchParams, proper async/await try/catch, re-entrancy guard. But the codebase still mixes patterns: inline onclick= on lang-switch buttons (L355,L356), inline style= on overlay/chip/persona-grid/visually-hidden elements (multiple), three document.write() calls (L855,L866,L894) — new #894 added this iter though the pattern pre-exists. CSS custom properties duplicated across 3 templates. Stale comment 'Step 1: Generate persona first' at L466. HTML is valid (DOCTYPE, charset, viewport), user echo-back escaped. Net: no regression, small incremental improvement from cleaner-than-average Regenerate JS, but the structural issues persist."
+    }
+  },
+  "aggregate_score": 3.695,
+  "target_score": null,
+  "target_rationale": "Target set at baseline (4.2). After iter 4 we are at 3.695; remaining gap 0.505 with 1 iteration left. Achievable only if iter 5 bundles bilingual propagation (+~0.12 on i18n weighted, +~0.09 on accessibility weighted) and visibilitychange+soft-recovery polling (+~0.09 on loading_feedback weighted). A narrowly-scoped single-change iter 5 will miss target.",
+  "feedback": "Iteration 4 cleanly resolves the longest-running form-UX bug in the codebase: Regenerate no longer reloads the same persona — it POSTs a fresh request with persona_json stripped, disables the button with aria-disabled + label change, and recovers on network error. Implementation quality is good (clean async/await, re-entrancy guard, proper FormData filtering). Form UX lifts 3.5 → 4.0. Everything else is unchanged from iter 3. The three carry-forward blockers that dominate the remaining score gap are, in priority order: (1) bilingual propagation into render_persona_card and render_result — this is the single highest-leverage change remaining because it hits both i18n_bilingual (2.5 → 4.0+) and accessibility SC 3.1.1 (4.0 → 4.5); (2) visibilitychange-aware health poller with soft recovery — lifts loading_feedback 3.5 → 4.0 and closes AUTO_RECONNECT_SCRIPT's role=status gap; (3) required-field visible '*' indicator on the form. Iter 5 should bundle at least (1) and (2) to meet target. The Regenerate-in-flight English label ('⏳ Regenerating…') introduced this iter should itself get data-ko coverage when bilingual propagation lands.",
+  "priority_fixes": [
+    {
+      "criterion": "i18n_bilingual",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Propagate data-en/data-ko to render_persona_card (L719-L908) and render_result (L485-L724). Read localStorage['qra-lang'] on DOMContentLoaded in both templates, call a local setLang() equivalent that swaps text on [data-ko] nodes and updates document.documentElement.lang. Include the new Regenerate states '⏳ Regenerating…' (L879) and 'Regenerate failed:' alert (L900). Also replace hardcoded <html lang=\"en\"> at L600 and L749 with a server-side value driven by Accept-Language header or cookie."
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "In AUTO_RECONNECT_SCRIPT (L18-L66): (a) add document.addEventListener('visibilitychange', …) — clearInterval on document.hidden, restart on visible; (b) give the banner role='status' aria-live='polite'; (c) replace the unconditional window.location.reload() at L49 with a soft banner-dismiss + aria-live announcement, only forcing reload if a session token has actually changed."
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Drop hardcoded <html lang=\"en\"> at L600 (render_result) and L749 (render_persona_card); emit dynamically based on a server-side lang decision or read localStorage and set document.documentElement.lang on DOMContentLoaded. Currently fails WCAG SC 3.1.1 for Korean users on 2 of 3 pages."
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Wrap emoji in section headers (📊 at L705, ✅ at L710, ❓ at L714, 🔍 at L721, 🚀 at L726) with <span aria-hidden=\"true\"> so screen readers don't read their punctuation names. Also: extract the inline style=\"position:absolute;left:-9999px…\" on the visually-hidden summary h2 at L690 into a reusable .visually-hidden class, and address the confidence pill non-text contrast at L676 (currently uses ~10% alpha tint — raise to a solid background meeting 3:1 or add a border)."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Add visible required-field indicators: append <span class=\"req\" aria-hidden=\"true\">*</span> next to the <label> text on service_name, service_url, service_type, core_journey, persona_description (L365/L368/L371/L374/L378). Pair with a legend ('* required') near the form top. Also: set aria-busy=\"true\" and disabled on the primary submit button inside the form-submit handler (L454-L475) BEFORE showPersonaLoading replaces the DOM, to prevent keyboard-repeat double-submission during the ~15s call."
+    },
+    {
+      "criterion": "visual_language",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Consolidate duplicated CSS custom properties across render_form (L193-L202), render_result (L606), render_persona_card (L753) into a shared CSS_VARS Python string constant to enforce single-source palette tokens. Also: change render_result body font-size from 14px (L608) to a rem value (e.g., 0.9375rem) so it scales with user zoom preferences."
+    },
+    {
+      "criterion": "responsive_layout",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Unify the three ad-hoc breakpoints (860/768/720) into mobile-first min-width tokens in a shared CSS var block: --bp-sm 640px, --bp-md 960px, --bp-lg 1200px. Use min-width queries so the default is mobile single-column, and only widen the grid at explicit desktop breakpoints. Also verify layout at 360px viewport — current 860px max-width queries leave a dead zone between 769-860px on the results page."
+    },
+    {
+      "criterion": "frontend_code_quality",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Replace inline onclick=\"setLang('en')\"/'ko' at L355/L356 with data-lang attributes + a single delegated addEventListener block (matches the iter-4 Regenerate pattern at L875). Remove stale 'Step 1: Generate persona first' comment at L466. Consider replacing document.open()/write()/close() (L855,L866,L894) with history.replaceState + DOMParser + document.body.replaceChildren for a cleaner client-side transition that preserves scroll/focus state."
+    }
+  ]
+}

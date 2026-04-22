@@ -1,0 +1,88 @@
+{
+  "evaluator_id": "review_quality",
+  "iteration": 5,
+  "iteration_budget": { "total": 5, "current": 5, "phase": "late" },
+  "active_criteria": [
+    "evidence_grounding",
+    "persona_grounding_and_voice",
+    "finding_severity_discipline",
+    "scoring_rubric_calibration",
+    "business_goal_anchoring",
+    "validation_semantic_coverage"
+  ],
+  "deferred_criteria": [],
+  "scores": {
+    "evidence_grounding": {
+      "score": 4.25,
+      "max": 5,
+      "reasoning": "Unchanged from v4. Post-filter stack at gemini.py:77-203 still in force: _check_evidence_grounding 3-gram sliding window with _UNOBSERVABLE_PHRASES escape hatch, _check_competitor_leak with _TITLECASE_MULTIWORD regex + _PACKET_SAFELIST + word-boundary context padding, competitor rule duplicated into build_request_plain_text_fallback, targeted Retry Note feedback at gemini.py:299-305, final-attempt accept at gemini.py:296-297. Belt-and-braces (prompt + schema + code) intact. Residuals unchanged: strengths not scanned by evidence-grounding check (competitor leak does scan strengths), paraphrased evidence can still trigram-pass, soft-accept on final attempt is silent."
+    },
+    "persona_grounding_and_voice": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Unchanged from v4. Voice Check block at agent.py:216-221 still placed immediately before Execution Instructions naming persona.name and voice[:5]. Reflection Loop voice-audit bullet at agent.py:261 intact. enrich_persona at gemini.py still triangulates user description + web search + site snapshot. The v5 diff adds no voice-related signal (no code-level persona_voice-content probe, no voice coverage of review_summary fields, fallback persona at service.py:119-134 still has generic anchors). The v5 validator does enforce persona_voice non-empty string per finding — that is a small but real defense against a hollow persona_voice field, but doesn't raise the voice-alignment ceiling since an empty string was already rare."
+    },
+    "finding_severity_discipline": {
+      "score": 4.1,
+      "max": 5,
+      "reasoning": "Marginal +0.1 lift. The severity rubric + blocker-cap + Nielsen-triad prose at agent.py:234-253 is unchanged. But the v5 validator now enforces priority ∈ {Blocker, High, Medium, Nit} as an enum at gemini.py:386-387, which (a) reaches the build_request_with_system_instruction first-attempt path where responseSchema is disallowed (google_search + responseSchema ban), closing the one request-builder where the enum wasn't decoder-enforced, and (b) protects against any future prompt drift that would mutate the labels. The per-finding non-empty floor on improvement_direction / impact_on_user / impact_on_business also forces the Nielsen-triad reconstructibility that the severity rubric required, which previously was prose-only. Residuals: no code-level blocker-cap enforcement (≤1 Blocker per 5 findings is still only in the Reflection Loop), no post-check that severity labels are differentiated across findings."
+    },
+    "scoring_rubric_calibration": {
+      "score": 4.1,
+      "max": 5,
+      "reasoning": "Unchanged from v4. Per-dimension 1/3/5 behavioral anchors across all 8 dimensions at agent.py:216-250, {reason, score} property reordering + propertyOrdering in review-output-schema.json structurally enforces reason-before-number CoT. The v5 validator does not add score/reason contradiction heuristics or flat-score detection (would have been the next lift). No changes in this iteration affect score calibration."
+    },
+    "business_goal_anchoring": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Stalled at 3.5 since baseline. The diff note explicitly acknowledges business_goal_anchoring was NOT addressed this iteration and that threading brief.business_goal through run_review with token-overlap check would have been required. prioritized_improvements schema still requires expected_business_outcome, and the severity rubric language still references 'threatens the stated business_goal' which keeps an implicit halo, but no code-level overlap check and no retry-note signal for business-goal drift. This is the single most-deferred critical/important criterion of the run."
+    },
+    "validation_semantic_coverage": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "+0.75 lift from v4 (3.25 → 4.0). validate_review_output at gemini.py:368-399 is finally expanded beyond structural-only: per-finding iteration enforces all 9 FINDING_REQUIRED fields (priority, title, journey_stage, problem, persona_voice, evidence, impact_on_user, impact_on_business, improvement_direction) must be non-empty strings; priority must be in _VALID_PRIORITIES enum; each violation returns a precise error pointing to the offending index and field (e.g. \"findings[2] missing non-empty 'evidence'\"). Strengths items enforced similarly for title/journey_stage/persona_reason/evidence. This closes the baseline split-enforcement risk — semantic floor is now in the validator itself, not only in run_review's post-check layer. The Retry Note mechanism at gemini.py:278 now carries the precise error into the next attempt's previous_failure, giving the model actionable repair signal. Residuals: (a) journey_stage is enum-enforced by responseSchema at the decoder layer but not by validate_review_output in Python — a belt-and-braces enum check on journey_stage in the validator would close the last gap for paths where responseSchema can't be applied (the google_search first-attempt path), (b) no business-goal overlap check, (c) no score/reason consistency check, (d) scores are not validated as integers in 1-5 here (only via responseSchema)."
+    }
+  },
+  "aggregate_score": 4.08,
+  "target_score": null,
+  "target_rationale": null,
+  "feedback": "Iteration 5 landed the largest remaining single-criterion lift by expanding validate_review_output into a per-item semantic floor (gemini.py:368-399). This closes the split-enforcement risk that has been flagged every iteration since iter 2 — the semantic layer is now dual-enforced (in run_review's post-check AND in validate_review_output itself), so any future caller of validate_review_output gets the full floor rather than the structural stub. The validator also naturally protects the weakest request-builder path (google_search + systemInstruction, where responseSchema is disallowed) because it runs on the parsed output regardless of which builder produced it. Aggregate crossed 4.0 at iter 4 and now sits at 4.08, finishing the run above target with small positive residuals in severity_discipline (+0.1 from enum-in-Python) and validation_semantic_coverage (+0.75 from the per-item floor). The one criterion that never moved is business_goal_anchoring (3.5 throughout), which the diff note explicitly documents as out-of-scope for this iteration's bundle — the single largest remaining opportunity for future work. Overall trajectory: 2.68 → 3.06 → 3.725 → 3.90 → 4.005 → 4.08.",
+  "priority_fixes": [
+    {
+      "criterion": "business_goal_anchoring",
+      "severity": "high",
+      "target_files": ["src/personalens/gemini.py", "src/personalens/service.py", "src/personalens/agent.py"],
+      "suggestion": "Thread brief.business_goal through run_review (analogous to how webpage_context and allowed_competitors were threaded in iter 2). Add a _check_business_goal_overlap(parsed, business_goal) function that tokenizes business_goal (lowercased, stripped of stopwords like {the, a, an, to, and, or, of, in, for, with}), then scans prioritized_improvements.quick_wins[].expected_business_outcome, structural_fixes[].expected_business_outcome, and validation_experiments[].expected_business_outcome for token overlap. Items with zero content-token overlap should be flagged and added to semantic_issues for retry feedback. In build_review_packet, also add a one-line reminder immediately before the prioritized_improvements instructions: 'Every expected_business_outcome MUST reference the business_goal verbatim or via a clearly related phrase — generic outcomes like \"improves conversion\" are rejected.' This lifts business_goal_anchoring 3.5 → ~4.0."
+    },
+    {
+      "criterion": "validation_semantic_coverage",
+      "severity": "medium",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Extend the new v5 validate_review_output to (a) enforce journey_stage ∈ JOURNEY_STAGES (import the list from agent.py) for both findings and strengths — this protects the google_search first-attempt path where responseSchema is disallowed; (b) enforce scores.*.score is an int in 1..5 and scores.*.reason is a non-empty string for each of the 8 dimensions (listing the 8 SCORING_DIMENSIONS as required keys); (c) enforce prioritized_improvements has the three keys quick_wins / structural_fixes / validation_experiments and each item has non-empty change, expected_user_outcome, expected_business_outcome, estimated_effort. This closes the last gaps to reach 4.5+ on this criterion."
+    },
+    {
+      "criterion": "evidence_grounding",
+      "severity": "medium",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Extend _check_evidence_grounding to also scan strengths[].evidence (currently only findings[].evidence is checked). Strengths are user-facing review content and share the same hallucination surface. Also add a soft-warning log when the final-attempt accept path (gemini.py:296-297) returns a result with outstanding semantic_issues, so reviewers/operators can audit which reviews were accepted with ungrounded evidence."
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py", "src/personalens/service.py"],
+      "suggestion": "Add a lightweight code-level voice probe: for each finding, check that persona_voice either contains one of persona.voice_anchors (casefold substring match) OR starts with a first-person marker (\"I \", \"My \", \"When I \", \"For me\"). If neither, flag for retry via semantic_issues. Also replace the generic service.py fallback persona voice anchors ('practical, time-conscious, skeptical, low-hype') with an explicit runtime signal that a fallback persona was used, so downstream consumers know the voice floor is weaker."
+    },
+    {
+      "criterion": "finding_severity_discipline",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Add a post-check to enforce the Reflection Loop's blocker-cap: at most ceil(len(findings)/5) Blocker-severity findings. If exceeded, flag for retry with a specific hint ('You listed N Blockers in M findings. Downgrade the weakest N-ceil(M/5) to High per the severity rubric.'). Currently the cap lives only in the Reflection Loop prose at agent.py:252 and is not code-enforced."
+    },
+    {
+      "criterion": "scoring_rubric_calibration",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Add a flat-score heuristic: if all 8 dimension scores are the same integer, or if 7 of 8 are identical, flag for retry with a hint ('Scores showed no differentiation across 8 dimensions. Re-score using the 1/3/5 behavioral anchors in the packet — unless all dimensions genuinely share a severity level, differentiate.'). Pair with a simple score/reason contradiction heuristic: if score >= 4 and the reason contains any of {unclear, confusing, broken, missing, fails, does not, cannot, no }, flag for retry. Both are cheap string ops."
+    }
+  ]
+}

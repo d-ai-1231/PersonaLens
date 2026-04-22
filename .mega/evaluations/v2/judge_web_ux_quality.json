@@ -1,0 +1,86 @@
+{
+  "evaluator_id": "web_ux_quality",
+  "iteration": 2,
+  "iteration_budget": { "total": 5, "current": 2, "phase": "mid" },
+  "active_criteria": ["form_ux_flow", "loading_feedback", "accessibility", "visual_language", "responsive_layout"],
+  "deferred_criteria": ["i18n_bilingual", "frontend_code_quality"],
+  "scores": {
+    "form_ux_flow": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L366-L398 — field order is intent-aligned (service_name → service_url → service_type → core_journey → persona_description → business_goal → problems → competitors → model) and every input has a programmatic <label for=''> (L364-L397). User values are HTML-escaped via v() at L182-183. However unchanged from iter 1: (1) Regenerate button at L834 remains `onclick=\"location.reload()\"` — still reloads the persona page without re-POSTing /persona, so users cannot actually regenerate the persona. (2) No visible `*` required indicator next to the 5 required inputs; screen-reader users learn of the requirement only after submit. (3) Submit button on the form path is never visibly disabled with aria-busy during the ~15s /persona round-trip (showPersonaLoading at L443-456 replaces document.body but doesn't prevent double-submit before that paint). No regression."
+    },
+    "loading_feedback": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py diff this iter addresses WCAG SC 2.3.3 / prefers-reduced-motion, the single largest gap in this criterion. All four keyframes now have fallbacks: L452-454 covers `@keyframes spin` via `.spin-disc, [style*=\"spin\"] { animation:none }` (the attribute selector catches the inline `animation:spin ...` on the spinner at L445); L1085-1108 covers skel-shimmer, skel-fade-in, skel-dot-anim via an explicit class-list plus `[class*=\"shimmer\"]` / `[class*=\"skel-\"]` pattern-matchers covering the whole skeleton system. Skeleton still mirrors render_result layout exactly (no CLS) and shimmer cycle stays at 1.6s (within the 1.5-2s guidance). Remaining gaps unchanged: (a) health poller at L63 has no `visibilitychange` handler — continues polling /health every 1.5s on hidden tabs and still does a hard `window.location.reload()` on recovery at L49; (b) only a single static phase message for a 30-60s wait (no progressive 'Crawling… → Analyzing… → Generating…' sequence); (c) polling banner lacks role='status' / aria-live='polite'. Net: +0.5 over iter 1."
+    },
+    "visual_language": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "webapp.py:L193-202, L599, L746 — earth-tone palette (--bg #f4efe6, --accent #0e6b58, --accent-2 #d97a2b) applied via CSS custom properties, though tokens are duplicated across render_form, render_result, and render_persona_card rather than shared. Score chips (L527-529) and priority badges (L506-511) include text labels (passes WCAG 1.4.1). Pretendard loaded with system-font fallback stack. Unchanged this iter: confidence pill at L669 uses `{conf_color}18` (~10% alpha background) which likely fails WCAG 1.4.11 3:1 non-text contrast; base `body { font-size:14px }` at L601 is px-not-rem; emoji section headers (📊 ✅ ❓ 🔍 🚀) lack `aria-hidden='true'`."
+    },
+    "responsive_layout": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L191 — <meta viewport> present. Breakpoints at L342 (860px, form), L656 (768px, result), L772 (720px, persona) — three different desktop-first max-width values without content-driven rationale, creating potential dead zones between 720-860px. Tips sidebar collapses gracefully on narrow viewports. No horizontal scroll at 360px based on single-column collapse. Touch targets (~32px button padding) pass WCAG 2.2 SC 2.5.8. Queries use max-width (desktop-first) rather than recommended mobile-first min-width. No change this iter."
+    },
+    "accessibility": {
+      "score": 3.0,
+      "max": 5,
+      "reasoning": "webapp.py — Only partial progress. This iter fixes SC 2.3.3 Animation from Interactions (prefers-reduced-motion fallbacks at L452-454 and L1085-1108 for all four keyframes), but none of the higher-severity iter-1 items landed: (1) <html lang='en'> remains hardcoded at L593 (render_result) and L739 (render_persona_card) with no propagation of `qra-lang` on those pages — SC 3.1.1 / 3.1.2 still failing for Korean users after step 1. (2) No semantic landmarks (<main>, <header>, <nav>, <footer>) in any template — SC 1.3.1. (3) Error block at L185 lacks role='alert'/aria-live='assertive'; polling banner at L24-39 lacks role='status'/aria-live='polite' — SC 4.1.3 Status Messages. (4) Lang-switch buttons at L355-356 lack aria-pressed — SC 4.1.2 state not exposed. (5) Confidence pill contrast at L669 still likely <3:1 — SC 1.4.11. Labels on all inputs remain good (SC 1.3.1 form-level). The reduced-motion fix is worth a small partial credit (~+0.1) but doesn't cross the next score threshold."
+    },
+    "i18n_bilingual": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "webapp.py:L353-L412 — data-en/data-ko attributes cover 25 strings on the form page, localStorage key 'qra-lang' persists preference (L431-434), setLang updates document.documentElement.lang correctly (L418-430). Toggle labels ('English' / '한국어') each shown in own script — good. But render_persona_card (L719-866) and render_result (L482-716) are monolingual English: no data-en/data-ko anywhere, no on-load setLang call, <html lang='en'> static. A Korean user who toggles to KO on the form drops back into English after step 1. No change this iter."
+    },
+    "frontend_code_quality": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py — CSS custom properties used for palette tokens (though duplicated across three templates). JS uses const/let, arrow functions, addEventListener. HTML escaping on all user echo-back. Rough edges unchanged: inline `style=''` on many elements (AUTO_RECONNECT_SCRIPT banner L28-38, showPersonaLoading overlay L443-447, score chip color L528-529, confidence pill L669), three inline `onclick=` handlers (L355, L356, L834), `document.write` used in three places (L469, L846-847, L855-857), AUTO_RECONNECT_SCRIPT appended after </body> at L478 and L715 (outside body, technically malformed)."
+    }
+  },
+  "aggregate_score": 3.405,
+  "target_score": null,
+  "target_rationale": "Target set in iter 0 at 4.2. After iter 2 aggregate is 3.405 (was 3.315 baseline and iter 1). Trajectory: +0.09 in 2 iterations. Remaining budget: 3 iterations. To reach 4.2 the fixer needs +0.795, which requires the bilingual propagation (lifts accessibility from 3.0 to ~4.0 and i18n from 2.5 to ~4.0) AND the visibilitychange/soft-recovery loading fixes AND Regenerate POST fix to land. Feasible but tight — no mid-phase criteria have regressed, so the headroom is still there.",
+  "feedback": "Iteration 2 delivers one focused, correct fix: prefers-reduced-motion fallbacks now cover every keyframe in the app (WCAG SC 2.3.3). The attribute selector `[style*=\"spin\"]` is a clever way to reach the inline spinner animation without refactoring the inline-style. However, five out of six priority fixes from iter 1 are still open after two iterations: (1) bilingual propagation into render_persona_card/render_result is the single largest remaining WCAG+UX win and affects both accessibility and i18n_bilingual simultaneously; (2) Regenerate button still calls `location.reload()` instead of re-POSTing /persona — this is user-facing broken functionality; (3) the health poller still hammers /health every 1.5s on hidden tabs and hard-reloads on recovery; (4) semantic landmarks and aria-live regions are still absent; (5) the required-field `*` indicator is still missing. With 3 iterations left to hit the 4.2 target, the fixer should bundle multiple quick accessibility wins per iteration rather than shipping one keyframe guard per cycle.",
+  "priority_fixes": [
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Propagate bilingual support into render_persona_card (L719-866) and render_result (L482-716): (a) replace static `<html lang=\"en\">` at L593 and L739 with the active language read from `localStorage['qra-lang']`; (b) add data-en/data-ko attributes to all user-facing strings on those two templates (step indicator, button labels, section headings, 'Run another review', etc.); (c) duplicate the on-load setLang() block so the preference is applied on persona and result pages too. Fixes WCAG SC 3.1.1 / 3.1.2 and unblocks i18n_bilingual simultaneously."
+    },
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Add semantic landmarks to all three templates: wrap the form body in `<main>` (inside render_form, around L361), wrap the persona card in `<main role=\"main\">` (render_persona_card), wrap the result in `<main>` with a `<header>` for the hero and `<section aria-labelledby>` per review section. Add `role=\"status\" aria-live=\"polite\"` to the AUTO_RECONNECT_SCRIPT banner (L24-39) and `role=\"alert\"` to the error div at L185. Add `aria-pressed` to the two lang-switch buttons at L355-356, toggled inside setLang(). Fixes WCAG SC 1.3.1 and 4.1.3."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Fix the Regenerate button at L834. Replace `onclick=\"location.reload()\"` with an addEventListener handler that POSTs the stashed original form fields (already present as hidden inputs L824-833) back to /persona with a fresh nonce, shows the skeleton, and swaps in the new persona card. Currently the button is a no-op from the user's perspective. Also add visible `*` required indicators to the 5 required inputs (service_name, service_url, service_type, core_journey, persona_description) and expose aria-busy+disabled on the submit button during the /persona round-trip."
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "In AUTO_RECONNECT_SCRIPT (L18-66), pause the 1.5s /health poller when `document.hidden === true` via a visibilitychange listener, resume on 'visible'. Replace the unconditional `window.location.reload()` on recovery at L49 with a soft recovery: update banner text to 'Reconnected' and aria-live-announce, only force-reload if the server reports a stale session. Also: add progressive phase text to render_skeleton (L1097+) that updates at 0s/5s/15s/30s in both EN and KO, announced via the same `role='status' aria-live='polite'` region."
+    },
+    {
+      "criterion": "visual_language",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Confidence pill at L669 uses `background:{conf_color}18` (~10% alpha) with the same color for text — non-text contrast of the pill edge against the panel is likely below WCAG 1.4.11's 3:1 requirement. Either darken the background alpha (e.g., `{conf_color}33` = 20%) AND verify the text-on-fill contrast, or add a 1px border `border:1px solid {conf_color}` to establish the 3:1 edge. Also convert `body { font-size:14px }` at L601 to `1rem` (or `0.875rem` if truly 14px is desired but expressed in rem) for user font-scaling."
+    },
+    {
+      "criterion": "responsive_layout",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Rationalize the three breakpoints (860px L342, 768px L656, 720px L772) into a single token system. Either adopt a unified `min-width` mobile-first approach — default single-column, `@media (min-width: 640px)` two-column, `@media (min-width: 1024px)` three-column — or document a content-driven reason for each existing value. Current desktop-first max-width queries with three different thresholds create inconsistent layouts between 720-860px viewport widths."
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import ipaddress
 import re
 import socket
@@ -110,6 +111,7 @@ class PageParser(HTMLParser):
             self.text_parts.append(text)
 
 
+@functools.lru_cache(maxsize=64)
 def fetch_webpage_context(url: str) -> str:
     if not is_safe_request_url(url):
         return "- Fetch blocked: private, localhost, or invalid URLs are not allowed."

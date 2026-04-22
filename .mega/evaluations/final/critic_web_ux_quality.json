@@ -1,0 +1,111 @@
+{
+  "evaluator_id": "web_ux_quality",
+  "iteration": "final",
+  "trigger": "final_verification",
+  "validations": [
+    {
+      "criterion": "form_ux_flow",
+      "evaluator_score": 4.0,
+      "previous_score": 4.0,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "WCAG 2.2 SC 3.3.2 Labels or Instructions — H90 technique (label or legend for required fields)",
+        "Deque: Anatomy of Accessible Forms — Required Form Fields (aria-required + required attr + visible indicator)",
+        "WCAG 2.2 SC 4.1.2 Name, Role, Value — aria-busy on interactive components during state changes",
+        "MDN: WHATWG HTML Living Standard — inline onclick discouraged in favour of addEventListener for CSP"
+      ],
+      "note": "Score of 4.0 is well-supported. The four gaps the evaluator cites are all externally verified: (a) absent required-field asterisks is a documented SC 3.3.2 convention gap — WCAG H90 and Deque both confirm that visible + programmatic indicators should co-exist; (b) missing aria-busy on submit is confirmed by SC 4.1.2 Name/Role/Value; (c) inline onclick is confirmed CSP-unfriendly by HTML Living Standard; (d) no HTML5 constraint inline errors (browser tooltip only) is a known UX shortfall per SC 3.3.1. Holding at 4.0 rather than 4.5 is consistent with these verified gaps."
+    },
+    {
+      "criterion": "loading_feedback",
+      "evaluator_score": 4.5,
+      "previous_score": 4.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "NN/G: Skeleton Screens 101 — for waits >10s a progress bar or phase text is required to maintain user engagement",
+        "Medium: Engaging users with progressive loading in skeleton screen — multiple progression phases keep user focus active",
+        "NN/G guideline: shimmer cycle 1.5–2s with prefers-reduced-motion fallback",
+        "WCAG 2.2 SC 2.3.3 Animation from Interactions — prefers-reduced-motion should disable keyframes"
+      ],
+      "note": "Score of 4.5 is well-supported. Skeleton reuse eliminating CLS is best-practice per NN/G. The two remaining gaps are verified: (a) absent progressive phase text during 30–60s wait contradicts NN/G's explicit guidance that waits over 10s need phase indicators; (b) the hard location.reload() fallback discards in-flight state — the wisdom strategies in the judge file and standard UX guidance both recommend soft DOM-mutation recovery. No evidence contradicts the evaluator's reasoning."
+    },
+    {
+      "criterion": "visual_language",
+      "evaluator_score": 4.0,
+      "previous_score": 4.0,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "WCAG 2.2 SC 1.4.11 Non-Text Contrast — UI components and state indicators must have 3:1 contrast against adjacent color (W3C WAI)",
+        "Dequeue/DigitalA11Y: 1.4.11 applies to confidence pills, score chips, badge borders",
+        "WCAG 2.2 SC 1.4.4 Resize Text — font-size in px prevents user browser font preferences from scaling",
+        "W3C / BOIA: aria-hidden on decorative unicode — screen readers announce emoji Unicode names verbatim"
+      ],
+      "note": "Score of 4.0 is well-supported. The confidence pill alpha-bg at ~9% opacity is confirmed to fail SC 1.4.11's 3:1 threshold — WebAIM and W3C sources confirm the absolute minimum is 3:1 with no rounding. Hardcoded 14px body font-size is confirmed to break SC 1.4.4. Emoji section headers not wrapped in aria-hidden is confirmed as a screen reader noise issue per multiple accessibility references. The CSS variables duplication is a maintainability issue, not a WCAG violation, but is externally consistent with clean CSS guidance."
+    },
+    {
+      "criterion": "responsive_layout",
+      "evaluator_score": 3.5,
+      "previous_score": 3.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "MDN: Mobile-first CSS with min-width media queries is the recommended pattern",
+        "DevToolbox 2026: Mobile-first min-width queries yield cleaner CSS and better performance on mobile devices",
+        "BrowserStack: Responsive breakpoints should be content-driven, not device-specific; common reference values 480, 768, 1024px",
+        "WCAG 2.2 SC 1.4.10 Reflow — no horizontal scroll at 320px viewport width",
+        "WCAG 2.2 SC 2.5.8 Target Size Minimum — 24x24 CSS px minimum for touch targets"
+      ],
+      "note": "Score of 3.5 is well-supported. Desktop-first max-width queries are explicitly contra-indicated by MDN and multiple 2026 responsive design guides. Three mismatched breakpoint values (860/768/720) creating dead zones is a documented pitfall. Absence of verification at 360px viewport is a confirmed SC 1.4.10 Reflow concern. Touch targets appear compliant. No evidence contradicts the evaluator's scoring rationale."
+    },
+    {
+      "criterion": "accessibility",
+      "evaluator_score": 4.5,
+      "previous_score": 4.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "WCAG 2.2 SC 3.1.1 Language of Page — html lang must be programmatically determinable; static 'en' with client-side JS patch fails for no-JS and pre-hydration assistive tech (W3C WAI H57)",
+        "W3C H57: The lang attribute on the html element is the required technique; relying on JS bootstrap is not the H57 technique",
+        "WCAG 2.2 SC 1.4.11 — confidence pill alpha-bg fails 3:1 non-text contrast (see visual_language above)",
+        "W3C / BOIA: Decorative emoji should use aria-hidden='true' — screen readers announce Unicode names literally",
+        "WCAG 2.2 SC 2.4.7 Focus Visible — all interactive elements must have a visible focus state",
+        "WCAG 2.2 SC 4.1.3 Status Messages — aria-live='polite' on status regions is correct; aria-live='assertive' on errors is correct"
+      ],
+      "note": "Score of 4.5 is well-supported. Static <html lang='en'> plus client-side bootstrap is confirmed to be a SC 3.1.1 partial failure for no-JS users and pre-hydration crawlers per W3C H57. The LANG_BOOTSTRAP_SCRIPT mitigation is a recognised workaround but not the authoritative technique. Remaining gaps (confidence pill contrast, emoji aria-hidden, no skip link, lang toggle missing on persona/result pages) are all corroborated by external WCAG sources. The evaluator's score is conservative and defensible."
+    },
+    {
+      "criterion": "i18n_bilingual",
+      "evaluator_score": 4.5,
+      "previous_score": 4.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "i18next-browser-languageDetector default detection order: querystring → cookie → localStorage → navigator — navigator.language fallback for first-time visitors is standard practice",
+        "DEV Community: Every way to detect a user's locale — localStorage should be checked before navigator, and navigator before default",
+        "WAI Accessible Language Pickers (Terrill Thompson): language switcher should be present on all pages, not just the entry page",
+        "WCAG 2.2 SC 3.1.1 — document.documentElement.lang must be updated on client-side language toggle"
+      ],
+      "note": "Score of 4.5 is well-supported. The three documented gaps are verified externally: (a) absent navigator.language fallback for first-time visitors is confirmed against i18next detection-order best practice; (b) lang toggle only on form page contradicts accessibility guidance that a switcher should be available on every page; (c) hardcoded English in-flight strings ('Regenerating…', 'Regenerate failed:') are a straightforward regression against the bilingual data-en/data-ko pattern that was applied everywhere else. No external source contradicts the evaluator."
+    },
+    {
+      "criterion": "frontend_code_quality",
+      "evaluator_score": 4.0,
+      "previous_score": 4.0,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "MDN / WHATWG HTML Living Standard: document.write() is strongly discouraged; blocks HTML parser; use DOMParser or innerHTML instead",
+        "GTmetrix: document.write causes render-blocking and should be avoided",
+        "DEV Community: Best practices for clean/maintainable HTML/CSS/JS — avoid inline style= and onclick=; prefer classes and addEventListener",
+        "LogRocket: Inlining CSS is acceptable for single-page critical-path scenarios (PersonaLens's architecture is a legitimate use case)",
+        "CSP: inline onclick= prevents effective Content-Security-Policy headers"
+      ],
+      "note": "Score of 4.0 is well-supported. The five gaps cited are all externally corroborated: (a) inline onclick= at L410/411 is confirmed CSP-unfriendly per multiple sources; (b) extensive inline style= attributes are confirmed anti-pattern per DEV clean-code guidelines; (c) document.write in 3 places is confirmed WHATWG-discouraged per MDN and GTmetrix; (d) duplicated :root CSS variables is a DRY violation; (e) fragile string-replace for skeleton injection is an implementation-quality concern. The inlining architecture itself is confirmed acceptable per LogRocket, so no penalty there."
+    }
+  ],
+  "overall_verdict": "confirmed",
+  "actions": []
+}

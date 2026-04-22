@@ -1,0 +1,75 @@
+{
+  "evaluator_id": "prompt_pipeline",
+  "iteration": 4,
+  "iteration_budget": { "total": 5, "current": 4, "phase": "late" },
+  "active_criteria": ["prompt_quality", "llm_configuration", "retry_reliability", "pipeline_structure", "token_efficiency"],
+  "deferred_criteria": [],
+  "scores": {
+    "prompt_quality": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Iter 4 resolves the prompt/schema ordering contradiction from iter 3: review-output-schema.json:24-31 now orders score objects as {reason, score}, matching the prose declaration at agent.py:302. The constrained decoder (builders 2 and 3) will now emit reason before score, so chain-of-thought reasoning-before-commit is actually enforced at decode time rather than merely asserted. Behavioral scoring rubric (agent.py:216-250), severity rubric (agent.py:277-282), Voice Check (agent.py:252-257) all remain. Remaining demerits: (1) SYSTEM_PROMPT still duplicated across gemini.py:394-405 systemInstruction + agent.py:169-170 packet markdown; (2) competitor rule still restated 4× (agent.py:46-52 + agent.py:195 + gemini.py:472 + gemini.py:521-526); (3) EVALUATE-not-EXPAND restated 3× (agent.py:23-37 + exec instructions 7-10 at 270-273 + reflection-loop 292-294). These waste ~400-600 tokens per call and dilute instruction attention but do not break correctness."
+    },
+    "llm_configuration": {
+      "score": 4.25,
+      "max": 5,
+      "reasoning": "Score-field reorder in review-output-schema.json means _schema_from_template (agent.py:109-118) now propagates {reason, score} into propertyOrdering+required on the responseSchema, so on builders 2 and 3 the constrained decoder enforces reasoning-first ordering for all 8 score objects. This is real structured-output correctness, not just prompt hinting. Additionally, journey_stage enums are expanded by _schema_from_template (agent.py:138-142) from 'Entry|Orientation|...' pipe-strings into strict JSON-schema enums, tightening decode-layer structural guarantees on strengths[].journey_stage and findings[].journey_stage. temperature=0.1, top_p=0.95, responseMimeType='application/json' remain set on all three builders (gemini.py:375-381). Builder 1 (grounded with google_search) still cannot attach responseSchema per Gemini API constraint — this is correct handling, not a gap. The only remaining cap on this score is that builder 1 still relies on prompt+responseMimeType alone (no constrained decoding), making the rotation builder-1 → builder-2 a real downgrade-to-upgrade in structural safety; that's inherent to the API."
+    },
+    "retry_reliability": {
+      "score": 4.75,
+      "max": 5,
+      "reasoning": "Unchanged from iter 2/3. Three-class error hierarchy (gemini.py:14-31) with GeminiPermanentError (raise immediately), GeminiRateLimitError (Retry-After honored, backoff if absent), GeminiTransientError (exponential backoff + full jitter, cap 30s, max 3 attempts) at gemini.py:232-254. SAFETY/RECITATION/BLOCKLIST/PROHIBITED_CONTENT finishReason treated as permanent at gemini.py:263-266. Semantic validators at gemini.py:116-203 run after parse validation and inject issues into next retry's Retry Note (correct validation-failure-retry pattern). Last-attempt bypass at gemini.py:296-297 prevents starvation when terms genuinely cannot be anchored. enrich_persona uses same classification at gemini.py:594-605. Remaining polish: (a) builder rotation tied to API-attempt index (gemini.py:225) — a semantic-validation failure on attempt 0 does not rotate to a responseSchema-backed builder on attempt 1; (b) Retry-After HTTP-date form unparsed (_parse_retry_after at gemini.py:54-60 handles only numeric delta-seconds). Neither is load-bearing in practice."
+    },
+    "pipeline_structure": {
+      "score": 3.75,
+      "max": 5,
+      "reasoning": "Duplicate fetch_webpage_context bug fixed: @functools.lru_cache(maxsize=64) at webpage.py:114 means the two call sites (service.py:18 via build_packet_for_brief and service.py:90 via generate_persona_from_form) now share a single crawl per URL within a process. For the common /review flow where the form handler generates the persona and then builds the review packet, this collapses 2× HTTP round-trips + 2× crawl latency to 1×. responseSchema attachment on 2 of 3 builders persists. Remaining gaps that hold this below 4.5: (1) no persona cache by (service, type, description) hash — identical persona descriptions will still trigger a full enrich_persona LLM call; (2) both stages hardcode gemini-2.5-pro (service.py:17, 86, 140) — enrich_persona does not need pro-tier and could use flash for ~5-10× cost saving; (3) lru_cache is process-local with no TTL — fine for a single request, not a cross-run persistent cache; (4) 3 divergent builder shapes still retained rather than consolidated (gemini.py:384-488)."
+    },
+    "token_efficiency": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "+0.25 over iter 3. The lru_cache on fetch_webpage_context eliminates one full webpage crawl per end-to-end /review request, which is ~4.4k characters of crawl output (≈1100 tokens) saved at the crawl layer — but more importantly saves the 2nd HTTP round-trip and its latency. The schema-embedded-JSON-block remains absent (iter 3 win preserved), saving ~500-700 tokens per call vs baseline. Remaining inefficiencies: SYSTEM_PROMPT duplicated in systemInstruction + packet markdown (~600 tokens/call), competitor rule 4× (~200-300 tokens), EVALUATE-not-EXPAND 3× (~150 tokens), webpage excerpt still uncompressed at MAX_PAGES=8 × MAX_EXCERPT_CHARS=2200 ≈ 4.4k tokens (webpage.py:15-16, no relevance filter). Also, the severity rubric + scoring rubric + voice check collectively add ~400-500 tokens of model-quality content — net token cost is real but justified. Estimated remaining waste: ~1000-1200 tokens per call from dedupe-able content; ~2500 tokens from uncompressed webpage excerpt."
+    }
+  },
+  "aggregate_score": 4.0,
+  "target_score": null,
+  "feedback": "Iter 4 closed two of the most important carry-over items from iter 3's priority_fixes list: (a) the score-field ordering contradiction introduced in iter 3 is now resolved — {reason, score} ordering is enforced by the constrained decoder (builders 2 and 3) and matches the prompt's declaration, so chain-of-thought reasoning-before-commit is real rather than aspirational; (b) @functools.lru_cache on fetch_webpage_context eliminates the duplicate crawl that has been flagged since iter 1. The additional journey_stage enum tightening (pipe-enum → strict JSON-schema enum) is a bonus structural guarantee. Aggregate moves from 3.6875 to 4.0 (+0.31), crossing the 4.0 threshold. Remaining backlog is well-understood and small in scope: SYSTEM_PROMPT duplication across systemInstruction + packet markdown (~600 tokens/call), competitor-rule 4× restatement, EVALUATE-not-EXPAND 3× restatement, no persona-hash cache, hardcoded gemini-2.5-pro for enrich_persona, and an uncompressed 4.4k-token webpage excerpt with no relevance filter. These are consolidation/topology cleanups rather than architectural problems; each is independently small and any subset can land in iter 5.",
+  "priority_fixes": [
+    {
+      "criterion": "prompt_quality",
+      "severity": "medium",
+      "target_files": ["src/personalens/agent.py", "src/personalens/gemini.py"],
+      "suggestion": "Eliminate SYSTEM_PROMPT duplication: delete the '## System Prompt' block from build_review_packet (agent.py:169-170) so SYSTEM_PROMPT lives only in the systemInstruction field. Then add systemInstruction with SYSTEM_PROMPT to build_request_inline_prompt (gemini.py:422-449) and build_request_plain_text_fallback (gemini.py:452-481) so every builder carries the system prompt identically via the API's systemInstruction slot. Current state: builder 1 has a short bespoke systemInstruction at gemini.py:394-405 (not SYSTEM_PROMPT); builders 2 and 3 have no systemInstruction at all and rely on the packet markdown's embedded copy. After the fix, all 3 builders share one canonical SYSTEM_PROMPT source. Saves ~600 tokens/call and makes the prefix prompt-cache-friendly."
+    },
+    {
+      "criterion": "prompt_quality",
+      "severity": "medium",
+      "target_files": ["src/personalens/agent.py", "src/personalens/gemini.py"],
+      "suggestion": "Consolidate restated rules. Competitor rule currently lives at SYSTEM_PROMPT (agent.py:46-52) + 'Known Competitors' header (agent.py:195) + plain_text_fallback (gemini.py:472) + enrich_persona (gemini.py:521-526). Keep the full statement in SYSTEM_PROMPT only; reduce agent.py:195 to a one-line label ('## Approved Competitor List'); remove the restatement from gemini.py:472 (relies on systemInstruction after the fix above); keep enrich_persona's copy since enrich runs on a separate code path with its own system prompt. EVALUATE-not-EXPAND similarly restated 3×: keep in SYSTEM_PROMPT (agent.py:23-37), remove exec instructions items 7-10 (agent.py:270-273), remove reflection-loop bullets at agent.py:292-294. Saves ~300-400 tokens/call with no quality loss — repetition does not strengthen instruction-following."
+    },
+    {
+      "criterion": "pipeline_structure",
+      "severity": "medium",
+      "target_files": ["src/personalens/service.py", "src/personalens/gemini.py"],
+      "suggestion": "Add a persona cache keyed by (service_name, service_type, persona_description) hash. In service.py, wrap generate_persona_from_form with a dict or lru_cache keyed on hashlib.sha256(f'{service_name}|{service_type}|{persona_description}').hexdigest()[:16]. A full enrich_persona LLM call is ~3-5s wall time and ~1500 tokens output — caching by content hash means identical persona descriptions in batch evaluation or re-runs cost zero calls. Tier split: consider model='gemini-2.5-flash' for enrich_persona at service.py:102 (while keeping gemini-2.5-pro for run_review at service.py:48). The persona-card task is generative but not judgment-intensive; flash suffices and saves ~5-10× on the enrichment call."
+    },
+    {
+      "criterion": "llm_configuration",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Builder rotation decoupling. gemini.py:225 selects request_builder via min(attempt, len-1), so on attempt 0 the grounded builder (no responseSchema) runs regardless of whether the failure mode is structural or semantic. If a semantic-validation failure occurs on attempt 0 (evidence grounding or competitor leak), rotating to build_request_inline_prompt (which attaches responseSchema) on attempt 1 is sensible; but if the attempt-0 failure is API-layer transient, rotating away from google_search grounding may discard relevant research. Track a separate 'builder index' that advances on validation failure but resets on transient API failure. Minor ROI but makes the retry topology more principled."
+    },
+    {
+      "criterion": "retry_reliability",
+      "severity": "low",
+      "target_files": ["src/personalens/gemini.py"],
+      "suggestion": "Extend _parse_retry_after at gemini.py:54-60 to accept HTTP-date format per RFC 7231 (e.g., 'Wed, 21 Oct 2026 07:28:00 GMT') using email.utils.parsedate_to_datetime, returning max(0, target - now). Currently only numeric delta-seconds are honored; an HTTP-date Retry-After falls through to exponential backoff, which works but may under-sleep relative to the server's intended cooling window. Small reliability polish."
+    },
+    {
+      "criterion": "token_efficiency",
+      "severity": "medium",
+      "target_files": ["src/personalens/webpage.py"],
+      "suggestion": "Webpage excerpt is uncompressed: MAX_PAGES=8 × MAX_EXCERPT_CHARS=2200 ≈ 4.4k tokens of raw text with no relevance filter (webpage.py:15-16). Add a lightweight relevance filter after snapshot extraction: split each page's text into 200-400 char chunks, score each chunk against persona terms (job_to_be_done keywords, pain_points, service_type), and keep only the top-K chunks per page. Even a naive bag-of-words score (chunk-term-overlap count, normalized by chunk length) would typically cut the excerpt to ~1.5k-2k tokens while preserving the most persona-relevant content. Industry research: relevance filtering + semantic dedup reduces token cost 50-80% with minimal quality loss. Alternative cheaper move: lower MAX_EXCERPT_CHARS from 2200 to 1200 for non-landing pages — the landing page is usually the richest; deeper pages can be summarized tighter."
+    }
+  ]
+}

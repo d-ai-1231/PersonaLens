@@ -19,12 +19,21 @@ AUTO_RECONNECT_SCRIPT = """
 <script>
 (() => {
   let failed = false;
+  let failedSince = 0;
+  let intervalId = null;
+  const RECOVERY_RELOAD_MS = 4000;
+
+  function currentLang() {
+    return (document.documentElement.lang || "en").toLowerCase().startsWith("ko") ? "ko" : "en";
+  }
 
   function ensureBanner() {
     let banner = document.getElementById("server-status-banner");
     if (!banner) {
       banner = document.createElement("div");
       banner.id = "server-status-banner";
+      banner.setAttribute("role", "status");
+      banner.setAttribute("aria-live", "polite");
       banner.style.position = "fixed";
       banner.style.right = "18px";
       banner.style.bottom = "18px";
@@ -42,25 +51,70 @@ AUTO_RECONNECT_SCRIPT = """
   }
 
   async function poll() {
+    if (document.hidden) return;
     try {
       const res = await fetch("/health", { cache: "no-store" });
       if (!res.ok) throw new Error("health failed");
-      if (failed) {
+      const banner = ensureBanner();
+      if (failed && (Date.now() - failedSince) > RECOVERY_RELOAD_MS) {
         window.location.reload();
+        return;
       }
       failed = false;
-      const banner = ensureBanner();
+      failedSince = 0;
       banner.style.display = "none";
     } catch (err) {
+      if (!failed) failedSince = Date.now();
       failed = true;
       const banner = ensureBanner();
-      banner.textContent = "Server restarting. Reconnecting automatically...";
+      banner.textContent = currentLang() === "ko"
+        ? "서버 재시작 중 — 자동으로 다시 연결합니다..."
+        : "Server restarting. Reconnecting automatically...";
       banner.style.display = "block";
     }
   }
 
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) poll();
+  });
+
   poll();
-  setInterval(poll, 1500);
+  intervalId = setInterval(poll, 1500);
+})();
+</script>
+"""
+
+# Bootstrap language preference before first paint so every template picks up the user's choice
+# without flashing English to Korean users.
+LANG_BOOTSTRAP_SCRIPT = """
+<script>
+(() => {
+  try {
+    const saved = localStorage.getItem("qra-lang");
+    if (saved === "ko" || saved === "en") {
+      document.documentElement.lang = saved;
+    }
+  } catch (e) { /* localStorage unavailable — keep default lang */ }
+})();
+</script>
+"""
+
+# Shared localization helper used by render_persona_card and render_result so the page applies
+# data-en/data-ko swaps on load based on persisted preference.
+APPLY_LANG_SCRIPT = """
+<script>
+(() => {
+  const saved = (() => { try { return localStorage.getItem("qra-lang"); } catch (e) { return null; } })();
+  const lang = (saved === "ko" || saved === "en") ? saved : "en";
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-" + lang + "]").forEach((el) => {
+    const v = el.getAttribute("data-" + lang);
+    if (v !== null && v !== "") el.textContent = v;
+  });
+  document.querySelectorAll("[data-placeholder-" + lang + "]").forEach((el) => {
+    const v = el.getAttribute("data-placeholder-" + lang);
+    if (v !== null && v !== "") el.placeholder = v;
+  });
 })();
 </script>
 """
@@ -182,7 +236,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
     def v(key: str, default: str = "") -> str:
         return html.escape(values.get(key, default))
 
-    error_block = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    error_block = f'<div class="error" role="alert" aria-live="assertive">{html.escape(error)}</div>' if error else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -345,21 +399,22 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
     }}
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css">
+  {LANG_BOOTSTRAP_SCRIPT}
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <header class="hero">
       <div class="hero-top">
         <div class="badge" data-en="Non-Developer Friendly" data-ko="비개발자도 OK">Non-Developer Friendly</div>
-        <div class="lang-switch">
-          <button class="active" onclick="setLang('en')">English</button>
-          <button onclick="setLang('ko')">한국어</button>
-        </div>
+        <nav class="lang-switch" aria-label="Language">
+          <button class="active" onclick="setLang('en')" aria-pressed="true">English</button>
+          <button onclick="setLang('ko')" aria-pressed="false">한국어</button>
+        </nav>
       </div>
       <h1 data-en="Review your service like a real user would." data-ko="실제 사용자의 눈으로 서비스를 리뷰하세요.">Review your service like a real user would.</h1>
       <div class="sub" data-en="Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements." data-ko="간단한 정보 몇 가지만 입력하세요. AI 에이전트가 타겟 사용자의 관점에서 서비스를 리뷰하고, 불명확한 부분을 짚어주고, 구체적인 개선안을 제안합니다.">Put in a few plain-language answers. The agent will review your service from the target user's point of view, explain what feels unclear or weak, and suggest concrete improvements.</div>
-    </div>
-    <div class="grid">
+    </header>
+    <main class="grid">
       <form class="card" method="post" action="/review">
         {error_block}
         <label for="service_name" data-en="Service name" data-ko="서비스 이름">Service name</label>
@@ -412,7 +467,7 @@ def render_form(error: str = "", values: dict[str, str] | None = None) -> str:
           <li data-en="If the model lacks enough evidence, it should say so instead of faking certainty." data-ko="근거가 부족하면 확신하는 척하지 않고 솔직하게 말합니다.">If the model lacks enough evidence, it should say so instead of faking certainty.</li>
         </ul>
       </div>
-    </div>
+    </main>
   </div>
 <script>
 function setLang(lang) {{
@@ -423,7 +478,9 @@ function setLang(lang) {{
     el.placeholder = el.getAttribute('data-placeholder-' + lang) || el.placeholder;
   }});
   document.querySelectorAll('.lang-switch button').forEach(btn => {{
-    btn.classList.toggle('active', btn.textContent === (lang === 'ko' ? '한국어' : 'English'));
+    const active = btn.textContent === (lang === 'ko' ? '한국어' : 'English');
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   }});
   document.documentElement.lang = lang;
   localStorage.setItem('qra-lang', lang);
@@ -447,7 +504,12 @@ function showPersonaLoading() {{
         <div style="font-size:.85rem;color:#6d645a;">AI가 서비스와 사용자를 분석하고 있습니다...</div>
       </div>
     </div>
-    <style>@keyframes spin {{ to {{ transform:rotate(360deg); }} }}</style>
+    <style>
+      @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
+      @media (prefers-reduced-motion: reduce) {{
+        .spin-disc, [style*="spin"] {{ animation: none !important; }}
+      }}
+    </style>
   `;
 }}
 
@@ -475,6 +537,7 @@ function showPersonaLoading() {{
 }})();
 </script>
 </body>
+{APPLY_LANG_SCRIPT}
 {AUTO_RECONNECT_SCRIPT}
 </html>"""
 
@@ -659,59 +722,64 @@ def render_result(form: dict[str, str], brief, result: dict) -> str:
     }}
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css">
+  {LANG_BOOTSTRAP_SCRIPT}
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <header class="hero">
       <div>
         <h1>{esc(form.get('service_name', 'Service Review'))}</h1>
         <div class="verdict">{esc(summary.get('verdict', ''))}</div>
-        <span class="conf" style="color:{conf_color};background:{conf_color}18">Confidence: {esc(confidence)}</span>
+        <span class="conf" style="color:{conf_color};background:{conf_color}18"><span data-en="Confidence" data-ko="신뢰도">Confidence</span>: {esc(confidence)}</span>
       </div>
-      <a class="btn" href="/">Run another review</a>
-    </div>
+      <a class="btn" href="/" data-en="Run another review" data-ko="새 리뷰 시작">Run another review</a>
+    </header>
 
-    <div class="card">
+    <main>
+    <section class="card" aria-labelledby="summary-heading">
+      <h2 id="summary-heading" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)" data-en="Summary" data-ko="요약">Summary</h2>
       <div class="fi">
         <div class="fi-item">
-          <div class="fi-label">First impression</div>
+          <div class="fi-label" data-en="First impression" data-ko="첫인상">First impression</div>
           {esc(summary.get('first_impression', ''))}
         </div>
         <div class="fi-item">
-          <div class="fi-label">Why it matters</div>
+          <div class="fi-label" data-en="Why it matters" data-ko="왜 중요한가">Why it matters</div>
           {esc(summary.get('why_it_matters', ''))}
         </div>
       </div>
-    </div>
+    </section>
 
     <div class="row row-2">
-      <div class="card">
-        <h2>📊 Scores</h2>
+      <section class="card" aria-labelledby="scores-heading">
+        <h2 id="scores-heading" data-en="📊 Scores" data-ko="📊 점수">📊 Scores</h2>
         {render_score_bar()}
-      </div>
+      </section>
       <div>
-        <div class="card">
-          <h2>✅ Strengths</h2>
+        <section class="card" aria-labelledby="strengths-heading">
+          <h2 id="strengths-heading" data-en="✅ Strengths" data-ko="✅ 강점">✅ Strengths</h2>
           {render_compact_findings(strengths, is_strength=True)}
-        </div>
-        <div class="card">
-          <h2>❓ Open questions</h2>
-          {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty'>None</p>"}
-        </div>
+        </section>
+        <section class="card" aria-labelledby="oq-heading">
+          <h2 id="oq-heading" data-en="❓ Open questions" data-ko="❓ 열린 질문">❓ Open questions</h2>
+          {"".join(f"<div class='oq'>{esc(q)}</div>" for q in open_questions) or "<p class='empty' data-en='None' data-ko='없음'>None</p>"}
+        </section>
       </div>
     </div>
 
-    <div class="card">
-      <h2>🔍 Findings</h2>
+    <section class="card" aria-labelledby="findings-heading">
+      <h2 id="findings-heading" data-en="🔍 Findings" data-ko="🔍 발견사항">🔍 Findings</h2>
       {render_compact_findings(findings, is_strength=False)}
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>🚀 Improvements</h2>
+    <section class="card" aria-labelledby="improvements-heading">
+      <h2 id="improvements-heading" data-en="🚀 Improvements" data-ko="🚀 개선 제안">🚀 Improvements</h2>
       {render_compact_improvements()}
-    </div>
+    </section>
+    </main>
   </div>
 </body>
+{APPLY_LANG_SCRIPT}
 {AUTO_RECONNECT_SCRIPT}
 </html>"""
 
@@ -774,49 +842,49 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
-      <div class="badge">Step 2 of 3 — Persona Check</div>
-      <h1>Does this persona look right?</h1>
-      <p>Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed.</p>
-    </div>
+    <header class="hero">
+      <div class="badge" data-en="Step 2 of 3 — Persona Check" data-ko="3단계 중 2단계 — 페르소나 확인">Step 2 of 3 — Persona Check</div>
+      <h1 data-en="Does this persona look right?" data-ko="이 페르소나가 맞나요?">Does this persona look right?</h1>
+      <p data-en="Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed." data-ko="입력하신 내용과 웹사이트 콘텐츠를 바탕으로 AI가 타겟 사용자를 만들었습니다. 맞으면 리뷰를 실행하고, 다르면 다시 생성하세요.">Based on your inputs and the website content, the AI generated a specific target user. Confirm to run the review, or regenerate if needed.</p>
+    </header>
 
-    <div class="card">
+    <main class="card">
       <div class="p-name">{esc(persona.get('name', ''))}</div>
       <div class="p-segment">{esc(persona.get('segment', ''))}</div>
 
       <div class="grid">
         <div class="field">
-          <label>Job to be done</label>
+          <label data-en="Job to be done" data-ko="해결하려는 과제">Job to be done</label>
           <div class="val">{esc(persona.get('job_to_be_done', ''))}</div>
         </div>
         <div class="field">
-          <label>Context</label>
+          <label data-en="Context" data-ko="상황">Context</label>
           <div class="val">{esc(persona.get('context', ''))}</div>
         </div>
         <div class="field">
-          <label>Goals</label>
+          <label data-en="Goals" data-ko="목표">Goals</label>
           <ul>{list_items(persona.get('goals') or [])}</ul>
         </div>
         <div class="field">
-          <label>Pain points</label>
+          <label data-en="Pain points" data-ko="고충">Pain points</label>
           <ul>{list_items(persona.get('pain_points') or [])}</ul>
         </div>
         <div class="field">
-          <label>Success definition</label>
+          <label data-en="Success definition" data-ko="성공 정의">Success definition</label>
           <div class="val">{esc(persona.get('success_definition', ''))}</div>
         </div>
         <div class="field">
-          <label>Decision style / Tech level / Device</label>
+          <label data-en="Decision style / Tech level / Device" data-ko="의사결정 스타일 / 기술 수준 / 기기">Decision style / Tech level / Device</label>
           <div class="val">{esc(persona.get('decision_style', ''))} · {esc(persona.get('technical_level', ''))} · {esc(persona.get('device_context', ''))}</div>
         </div>
         <div class="field" style="grid-column:1/-1">
-          <label>Voice anchors</label>
+          <label data-en="Voice anchors" data-ko="보이스 앵커">Voice anchors</label>
           <div class="chips">
             {''.join(f'<span class="chip">{esc(str(v))}</span>' for v in (persona.get('voice') or []))}
           </div>
         </div>
         <div class="field" style="grid-column:1/-1">
-          <label>Accessibility needs</label>
+          <label data-en="Accessibility needs" data-ko="접근성 요구사항">Accessibility needs</label>
           <ul>{list_items(persona.get('access_needs') or [])}</ul>
         </div>
       </div>
@@ -825,13 +893,13 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
         {hidden_fields}
         <input type="hidden" name="persona_json" value="{persona_json}">
         <div class="actions">
-          <button class="btn btn-primary" type="submit">👍 Looks good, run review</button>
-          <button class="btn btn-ghost" type="button" onclick="location.reload()">🔄 Regenerate</button>
-          <a class="btn btn-warn" href="/">✏️ Back to form</a>
+          <button class="btn btn-primary" type="submit" data-en="👍 Looks good, run review" data-ko="👍 좋아요, 리뷰 실행">👍 Looks good, run review</button>
+          <button class="btn btn-ghost" type="button" id="regenerate-btn" data-en="🔄 Regenerate" data-ko="🔄 다시 생성">🔄 Regenerate</button>
+          <a class="btn btn-warn" href="/" data-en="✏️ Back to form" data-ko="✏️ 양식으로 돌아가기">✏️ Back to form</a>
         </div>
-        <div class="hint">The review may take up to a minute to generate.</div>
+        <div class="hint" data-en="The review may take up to a minute to generate." data-ko="리뷰 생성에는 최대 1분이 걸릴 수 있습니다.">The review may take up to a minute to generate.</div>
       </form>
-    </div>
+    </main>
   </div>
 <script>
 (function() {{
@@ -859,8 +927,41 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
       document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">Request failed: ' + err.message + '</div>';
     }}
   }});
+
+  const regenBtn = document.getElementById('regenerate-btn');
+  if (regenBtn) {{
+    regenBtn.addEventListener('click', async () => {{
+      if (regenBtn.getAttribute('aria-disabled') === 'true') return;
+      regenBtn.setAttribute('aria-disabled', 'true');
+      regenBtn.disabled = true;
+      regenBtn.textContent = '⏳ Regenerating…';
+      // Build a payload with the original form fields only — strip persona_json so the server
+      // generates a fresh persona rather than re-rendering the same one.
+      const payload = new URLSearchParams();
+      new FormData(form).forEach((value, key) => {{
+        if (key !== 'persona_json') payload.append(key, value);
+      }});
+      try {{
+        const response = await fetch('/persona', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
+          body: payload,
+        }});
+        const html = await response.text();
+        document.open();
+        document.write(html);
+        document.close();
+      }} catch (err) {{
+        regenBtn.removeAttribute('aria-disabled');
+        regenBtn.disabled = false;
+        regenBtn.textContent = '🔄 Regenerate';
+        alert('Regenerate failed: ' + err.message);
+      }}
+    }});
+  }}
 }})();
 </script>
+{APPLY_LANG_SCRIPT}
 {AUTO_RECONNECT_SCRIPT}
 </body>
 </html>"""
@@ -1076,6 +1177,30 @@ body { animation: skel-fade-in .25s ease; }
 @keyframes skel-dot-anim {
   0%, 80%, 100% { transform: scale(.6); opacity: .4; }
   40% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .hero h1,
+  .verdict,
+  .fi-item,
+  .sc-label,
+  .sc-num,
+  .sc-reason,
+  .cf strong,
+  .cf-detail,
+  .cf-action,
+  .cf-stage,
+  .cf-pri,
+  .imp strong,
+  .imp-meta,
+  .oq,
+  .conf,
+  .skel-dot,
+  .sc-fill,
+  [class*="shimmer"],
+  [class*="skel-"] {
+    animation: none !important;
+  }
 }
 </style>
 <script>

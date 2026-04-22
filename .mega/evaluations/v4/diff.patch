@@ -1,0 +1,113 @@
+diff --git a/review-output-schema.json b/review-output-schema.json
+index 35f6c9b..733c0a6 100644
+--- a/review-output-schema.json
++++ b/review-output-schema.json
+@@ -21,19 +21,19 @@
+     "evidence_sources": ["string"]
+   },
+   "scores": {
+-    "task_clarity": { "score": 1, "reason": "string" },
+-    "task_success": { "score": 1, "reason": "string" },
+-    "effort_load": { "score": 1, "reason": "string" },
+-    "trust_confidence": { "score": 1, "reason": "string" },
+-    "value_communication": { "score": 1, "reason": "string" },
+-    "error_recovery": { "score": 1, "reason": "string" },
+-    "accessibility": { "score": 1, "reason": "string" },
+-    "emotional_fit": { "score": 1, "reason": "string" }
++    "task_clarity": { "reason": "string", "score": 1 },
++    "task_success": { "reason": "string", "score": 1 },
++    "effort_load": { "reason": "string", "score": 1 },
++    "trust_confidence": { "reason": "string", "score": 1 },
++    "value_communication": { "reason": "string", "score": 1 },
++    "error_recovery": { "reason": "string", "score": 1 },
++    "accessibility": { "reason": "string", "score": 1 },
++    "emotional_fit": { "reason": "string", "score": 1 }
+   },
+   "strengths": [
+     {
+       "title": "string",
+-      "journey_stage": "string",
++      "journey_stage": "Entry|Orientation|Task start|Core action|Error recovery|Completion|Follow-up / Retention cue",
+       "persona_reason": "string",
+       "evidence": "string"
+     }
+@@ -42,7 +42,7 @@
+     {
+       "priority": "Blocker|High|Medium|Nit",
+       "title": "string",
+-      "journey_stage": "string",
++      "journey_stage": "Entry|Orientation|Task start|Core action|Error recovery|Completion|Follow-up / Retention cue",
+       "problem": "string",
+       "persona_voice": "string",
+       "evidence": "string",
+diff --git a/src/personalens/webapp.py b/src/personalens/webapp.py
+index b9a8cc7..16af6cc 100644
+--- a/src/personalens/webapp.py
++++ b/src/personalens/webapp.py
+@@ -836,7 +836,7 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
+         <input type="hidden" name="persona_json" value="{persona_json}">
+         <div class="actions">
+           <button class="btn btn-primary" type="submit">👍 Looks good, run review</button>
+-          <button class="btn btn-ghost" type="button" onclick="location.reload()">🔄 Regenerate</button>
++          <button class="btn btn-ghost" type="button" id="regenerate-btn">🔄 Regenerate</button>
+           <a class="btn btn-warn" href="/">✏️ Back to form</a>
+         </div>
+         <div class="hint">The review may take up to a minute to generate.</div>
+@@ -869,6 +869,38 @@ def render_persona_card(form: dict[str, str], persona: dict) -> str:
+       document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#a83131;font-size:1.1rem;">Request failed: ' + err.message + '</div>';
+     }}
+   }});
++
++  const regenBtn = document.getElementById('regenerate-btn');
++  if (regenBtn) {{
++    regenBtn.addEventListener('click', async () => {{
++      if (regenBtn.getAttribute('aria-disabled') === 'true') return;
++      regenBtn.setAttribute('aria-disabled', 'true');
++      regenBtn.disabled = true;
++      regenBtn.textContent = '⏳ Regenerating…';
++      // Build a payload with the original form fields only — strip persona_json so the server
++      // generates a fresh persona rather than re-rendering the same one.
++      const payload = new URLSearchParams();
++      new FormData(form).forEach((value, key) => {{
++        if (key !== 'persona_json') payload.append(key, value);
++      }});
++      try {{
++        const response = await fetch('/persona', {{
++          method: 'POST',
++          headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
++          body: payload,
++        }});
++        const html = await response.text();
++        document.open();
++        document.write(html);
++        document.close();
++      }} catch (err) {{
++        regenBtn.removeAttribute('aria-disabled');
++        regenBtn.disabled = false;
++        regenBtn.textContent = '🔄 Regenerate';
++        alert('Regenerate failed: ' + err.message);
++      }}
++    }});
++  }}
+ }})();
+ </script>
+ {AUTO_RECONNECT_SCRIPT}
+diff --git a/src/personalens/webpage.py b/src/personalens/webpage.py
+index 32f6037..1206f4b 100644
+--- a/src/personalens/webpage.py
++++ b/src/personalens/webpage.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+ 
++import functools
+ import ipaddress
+ import re
+ import socket
+@@ -110,6 +111,7 @@ class PageParser(HTMLParser):
+             self.text_parts.append(text)
+ 
+ 
++@functools.lru_cache(maxsize=64)
+ def fetch_webpage_context(url: str) -> str:
+     if not is_safe_request_url(url):
+         return "- Fetch blocked: private, localhost, or invalid URLs are not allowed."

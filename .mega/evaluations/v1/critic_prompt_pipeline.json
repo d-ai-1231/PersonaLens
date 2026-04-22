@@ -1,0 +1,52 @@
+{
+  "evaluator_id": "prompt_pipeline",
+  "iteration": "1",
+  "trigger": "score_change",
+  "validations": [
+    {
+      "criterion": "llm_configuration",
+      "evaluator_score": 3.5,
+      "previous_score": 1.5,
+      "delta": 2.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Google Cloud Vertex AI — Structured output docs: 'Include your response schema as part of the responseSchema field only. Don't duplicate the schema in your input prompt. If you do, the generated output might be lower in quality.'",
+        "Firebase AI Logic — Generate structured output: responseSchema + responseMimeType: 'application/json' is the correct controlled-generation pattern for Gemini",
+        "Google Developers Blog — Mastering Controlled Generation with Gemini 1.5: recommends schema-only in responseSchema, not duplicated in prompt",
+        "Medium (Polong Lin, Google Cloud): Consistent JSON output via controlled generation requires responseSchema attachment, not prompt-embedded schema"
+      ],
+      "note": "Score increase from 1.5 to 3.5 is well-supported. Temperature=0.1 + top_p=0.95 is confirmed best practice for structured JSON (industry consensus: 0.0–0.3 for Gemini 2.5 Pro). responseSchema correctly attached for builders 2 and 3. The held-back ceiling is also justified: Google's own docs explicitly warn against duplicating schema in both prompt and responseSchema — builder 1 (grounded) still carries the embedded schema markdown block alongside the API-level responseSchema on builders 2 and 3, which is the exact anti-pattern the docs warn against. Score of 3.5 rather than 4.0–5.0 is appropriately calibrated."
+    },
+    {
+      "criterion": "retry_reliability",
+      "evaluator_score": 4.5,
+      "previous_score": 1.5,
+      "delta": 3.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "AWS guidance: Full-jitter exponential backoff — baseline retry pattern; 60–80% reduction in retry storms vs no jitter. Base delay 1–2s, factor 2x, cap ~30–60s.",
+        "RFC 7231 (datatracker.ietf.org/doc/html/rfc7231): Retry-After header has two legal forms — delay-seconds (non-negative integer) AND HTTP-date (e.g., 'Fri, 31 Dec 1999 23:59:59 GMT'). Only numeric form currently handled.",
+        "apxml.com — Handling LLM API Errors: distinguish API-failure retries (retry same prompt) vs validation-failure retries (inject error into next prompt) — these are different failure modes.",
+        "dev.to — Building a Retry System with Exponential Backoff for LLM API Calls in Python: max 3–7 attempts, permanent error classes (4xx) must not retry, transient (5xx, 429) must use backoff.",
+        "Medium (Feb 2026) — Error Handling & Retries: Making LLM Calls Reliable: 429 with Retry-After must be respected; safety/content-filter blocks are non-retryable permanent failures."
+      ],
+      "note": "Score increase from 1.5 to 4.5 is strongly supported. The error hierarchy (GeminiPermanentError/GeminiRateLimitError/GeminiTransientError), full-jitter exponential backoff capped at 30s, max 3 attempts, Retry-After honored, safety blocks treated as permanent — all match authoritative guidance precisely. The two minor gaps the evaluator identifies are also externally confirmed: (1) RFC 7231 explicitly defines two Retry-After formats and handling only numeric-seconds form is incomplete; (2) the apxml.com source directly confirms that API-failure and validation-failure retries are distinct paths that should not be conflated. The 0.5-point deduction from a perfect 5 is appropriate given these confirmed gaps."
+    },
+    {
+      "criterion": "pipeline_structure",
+      "evaluator_score": 2.5,
+      "previous_score": 2.0,
+      "delta": 0.5,
+      "verdict": "evidence_found",
+      "sources": [
+        "redis.io LLMOps Guide 2026: 'Cache at every safe layer — exact-match for identical inputs. Avoid duplicate upstream work; cache by a deterministic key derived from stable inputs.'",
+        "AWS — Optimize LLM response costs and latency with effective caching: duplicate fetches and uncached deterministic LLM calls are a primary cost and latency driver in LLM pipelines.",
+        "tokenoptimize.dev: 'Token optimization is a context-engineering problem — bloated context, idle tool schemas, and stale history drive cost more than verbose phrasing.' Duplicate fetch_webpage_context is a pure waste.",
+        "Google Cloud Vertex AI structured output docs: schema should be in responseSchema parameter only, not embedded in packet markdown — partial progress acknowledged by evaluator (2 of 3 builders fixed)."
+      ],
+      "note": "Modest increase from 2.0 to 2.5 is justified. Partial schema attachment to builders 2 and 3 is confirmed progress. The evaluator's ceiling argument is also well-grounded: duplicate webpage fetch remains unaddressed (two full HTTP crawls per end-to-end request), no persona cache exists, and the schema duplication anti-pattern now explicitly applies to 2 of 3 builders. All three of the major unresolved issues are confirmed by external best-practice sources."
+    }
+  ],
+  "overall_verdict": "confirmed",
+  "actions": []
+}

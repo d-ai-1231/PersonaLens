@@ -1,0 +1,106 @@
+{
+  "evaluator_id": "web_ux_quality",
+  "iteration": 3,
+  "iteration_budget": { "total": 5, "current": 3, "phase": "late" },
+  "active_criteria": [
+    "form_ux_flow",
+    "loading_feedback",
+    "visual_language",
+    "responsive_layout",
+    "accessibility",
+    "i18n_bilingual",
+    "frontend_code_quality"
+  ],
+  "deferred_criteria": [],
+  "scores": {
+    "form_ux_flow": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L351-L479 render_form unchanged functionally this iter. Wrapping the hero in <header> and the grid in <main> does not affect submission UX. Two-stage POST /persona → POST /review path remains sound with escape + disable-during-POST via showPersonaLoading. Unresolved: (1) Regenerate button at L839 is still `onclick=\"location.reload()\"` — reloads the cached persona page, never re-POSTs /persona. (2) No visible required `*` indicator next to the 5 required labels. (3) No aria-busy on submit. (4) Stale comment at L461 ('Step 1: Generate persona first') mismatches the Step 2/3 label on the persona page."
+    },
+    "loading_feedback": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "webapp.py:L454-L459 (spin keyframe reduced-motion fallback) and L1090-L1113 (skeleton keyframes fallback) remain in place — SC 2.3.3 still satisfied. No change this iter. Unresolved: AUTO_RECONNECT_SCRIPT at L18-L66 still lacks a `visibilitychange` listener, still hard-reloads on recovery at L49, and the polling banner still uses only inline style= with no role=\"status\"/aria-live. Only one phase message surfaces for the 30-60s wait (no progressive 'Crawling…' → 'Analyzing…' → 'Generating…' sequence)."
+    },
+    "visual_language": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Earth-tone palette via CSS vars at L193-L202 (form), L599-series (result), L746-series (persona) — still triplicated, no CSS var reuse across templates. Score chips carry text (e.g., `4/5`) at L527-L529 and priority badges carry text labels at L506-L511 (passes SC 1.4.1). Pretendard loaded with system-font fallback. Confidence pill at L676 still uses `{conf_color}18` (~10% alpha tint) — likely fails SC 1.4.11 3:1 non-text contrast. Base font-size still `14px` at L601 rather than rem/em. No regressions this iter."
+    },
+    "responsive_layout": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "<meta viewport> present on all three templates. Breakpoints still 860px/768px/720px — three different desktop-first max-width thresholds without content-driven rationale. `<main class=\"grid\">` semantic change at L362 does not alter the grid CSS or the 860px breakpoint. Tips sidebar collapses on mobile. Base input font-size is unset (inherits 14px in result) — iOS Safari may auto-zoom on focus (<16px)."
+    },
+    "accessibility": {
+      "score": 4.0,
+      "max": 5,
+      "reasoning": "Material accessibility improvement this iter. Semantic landmarks added across all three templates: <header>/<nav aria-label=\"Language\">/<main> in render_form (L351-L479), <header>/<main>/<section aria-labelledby=...> x5 in render_result (L672-L721), <header>/<main class=\"card\"> in render_persona_card (L787-L793). Each results card now carries an id'd h2 heading (scores-heading, strengths-heading, oq-heading, findings-heading, improvements-heading) with a visually-hidden summary-heading. Lang-toggle buttons at L355-L356 carry aria-pressed and setLang() at L426-L428 keeps them synchronized. Error block at L185 now has role=\"alert\" aria-live=\"assertive\". Unresolved high-severity: `<html lang=\"en\">` still hardcoded at L600 (result) and L749 (persona) — SC 3.1.1 fails when user is in KO mode. Polling banner still has no role=\"status\"/aria-live. Visually-hidden h2 uses inline style= rather than a .visually-hidden utility class. Emoji section headers (📊 ✅ ❓ 🔍 🚀) at L698/L703/L707/L714/L719 have no aria-hidden. Confidence pill contrast still below 3:1."
+    },
+    "i18n_bilingual": {
+      "score": 2.5,
+      "max": 5,
+      "reasoning": "No change. webapp.py:L749 render_persona_card and L600 render_result remain monolingual English — zero data-ko attributes outside render_form. `data-ko` count stable at 26 (was 25; +1 incidental). Step-2 badge at L789 ('Step 2 of 3 — Persona Check'), all button labels, hints, and the entire results page (headings, 'Summary', 'Run another review') are hardcoded EN. A Korean user who toggles KO on the form drops back to English the moment they see the persona card. This is the highest-leverage unlanded fix — single change would lift both this and accessibility."
+    },
+    "frontend_code_quality": {
+      "score": 3.5,
+      "max": 5,
+      "reasoning": "Semantic HTML quality improved (header/main/nav/section now present). Escape helpers in place. However: inline `style=\"position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)\"` at L683 should be a `.visually-hidden` utility class, not inline. Inline `onclick=\"setLang(...)\"` at L355-L356 and `onclick=\"location.reload()\"` at L839 still present — CSP-unfriendly. `document.write` still used in 3 places. CSS variables still triplicated across templates. AUTO_RECONNECT_SCRIPT still appended after </body> at L481/L725 (malformed HTML placement). No regressions; the aria-labelledby pattern is correctly applied."
+    }
+  },
+  "aggregate_score": 3.585,
+  "target_score": null,
+  "target_rationale": "Baseline target 4.2 set at iter 0; unchanged.",
+  "feedback": "Iteration 3 landed the accessibility landmarks pass cleanly. All three templates now use <header>/<main>/<section aria-labelledby=...> with id'd h2 headings, the lang toggle carries aria-pressed and updates in sync, and the error block is an aria-live alert. This is a real +1.0 on the accessibility criterion (3.0 → 4.0). However, the three highest-leverage unlanded items from iterations 0/1/2 are all still open: bilingual propagation into render_persona_card and render_result (which would hit both accessibility and i18n), the Regenerate POST fix (form_ux_flow), and visibilitychange-aware polling with soft recovery (loading_feedback). With 2 iterations remaining and a gap of +0.615 to target 4.2, the pace is now borderline — the next iteration should bundle bilingual propagation + Regenerate fix + visibilitychange, not land one change at a time.",
+  "priority_fixes": [
+    {
+      "criterion": "accessibility",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Propagate bilingual support into render_persona_card (L749-L866) and render_result (L600-L724). Specifically: (1) emit `<html lang=\"{lang}\">` driven by a `lang` query param or cookie or Accept-Language header instead of hardcoding `en` at L600/L749; (2) add data-en/data-ko attributes to every user-facing string (Step-2 badge, headings 'Summary'/'📊 Scores'/'✅ Strengths'/'❓ Open questions'/'🔍 Findings'/'🚀 Improvements', 'Confidence:', 'Run another review', 'Regenerate', 'Back to form', 'Looks good, run review', 'The review may take up to a minute to generate.', 'First impression', 'Why it matters'); (3) inline a DOMContentLoaded handler on both templates that reads localStorage['qra-lang'] and calls setLang() — reuse the same function from render_form. Addresses WCAG SC 3.1.1 AND the i18n_bilingual criterion in one change."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "high",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Replace the Regenerate button at L839 (`onclick=\"location.reload()\"`) with a handler that re-POSTs the original form data to /persona. Carry the original form payload in a `data-form-payload` JSON attribute on `<main class=\"card\">`, attach a click listener in the existing IIFE at L847+, call showPersonaLoading(), fetch('/persona', {method:'POST', body: reconstructed FormData}), then document.open/write/close with the response HTML — mirroring the pattern at L857-L864. Disable the button with aria-disabled=true during the in-flight request."
+    },
+    {
+      "criterion": "loading_feedback",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "In AUTO_RECONNECT_SCRIPT (L18-L66): (1) add `document.addEventListener('visibilitychange', () => { if (document.hidden) clearInterval(timer); else startPoller(); })` so the 1.5s /health poll pauses in background tabs; (2) on recovery, replace `window.location.reload()` at L49 with a soft status-banner update wrapped in `role=\"status\" aria-live=\"polite\"` — only reload when the session cannot be recovered; (3) add role=\"status\" aria-live=\"polite\" to the banner container itself."
+    },
+    {
+      "criterion": "form_ux_flow",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Add a visible required-field indicator (`*` with an accessible label like `<span aria-label=\"required\" class=\"req\">*</span>`) next to each of the 5 required field labels in render_form (service_name, service_url, service_type, core_journey, persona_description) at L365-L380. Add aria-busy=\"true\" and disabled to the submit button inside showPersonaLoading() before the fetch to prevent double-submission."
+    },
+    {
+      "criterion": "visual_language",
+      "severity": "medium",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Fix confidence pill contrast at L676: `background:{conf_color}18` gives ~10% alpha tint with text in the same hue — likely <3:1 non-text contrast (SC 1.4.11). Replace with a readable pairing: either darken the text (e.g., `color:#0b3d2e` for green) or use a solid pastel background (`#e7f5ef`) with full-color text. Also change `body { font-size:14px }` at L601 to `font-size: 0.9375rem` (or 1rem) so user font-size preferences are respected."
+    },
+    {
+      "criterion": "visual_language",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Wrap emoji section headers (📊 ✅ ❓ 🔍 🚀) at L698/L703/L707/L714/L719 in `<span aria-hidden=\"true\">` so screen readers don't announce 'bar chart emoji Scores'. Keep the emoji visually, hide it from AT."
+    },
+    {
+      "criterion": "responsive_layout",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Rationalize the 860px/768px/720px breakpoint stack into a shared mobile-first token system. Introduce `--bp-mobile: 600px; --bp-tablet: 960px;` as CSS custom properties (or just a documented comment block) and use consistent min-width queries. Verify form inputs render at ≥16px font-size at narrow viewports to prevent iOS Safari auto-zoom."
+    },
+    {
+      "criterion": "frontend_code_quality",
+      "severity": "low",
+      "target_files": ["src/personalens/webapp.py"],
+      "suggestion": "Replace the inline `style=\"position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)\"` on the visually-hidden summary heading at L683 with a reusable `.visually-hidden` utility class defined once in the stylesheet. Replace the three inline `onclick=` attributes at L355/L356/L839 with addEventListener calls in the existing <script> blocks — CSP-friendly and consistent with the rest of the JS."
+    }
+  ]
+}

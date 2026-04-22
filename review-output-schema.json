@@ -21,19 +21,19 @@
     "evidence_sources": ["string"]
   },
   "scores": {
-    "task_clarity": { "score": 1, "reason": "string" },
-    "task_success": { "score": 1, "reason": "string" },
-    "effort_load": { "score": 1, "reason": "string" },
-    "trust_confidence": { "score": 1, "reason": "string" },
-    "value_communication": { "score": 1, "reason": "string" },
-    "error_recovery": { "score": 1, "reason": "string" },
-    "accessibility": { "score": 1, "reason": "string" },
-    "emotional_fit": { "score": 1, "reason": "string" }
+    "task_clarity": { "reason": "string", "score": 1 },
+    "task_success": { "reason": "string", "score": 1 },
+    "effort_load": { "reason": "string", "score": 1 },
+    "trust_confidence": { "reason": "string", "score": 1 },
+    "value_communication": { "reason": "string", "score": 1 },
+    "error_recovery": { "reason": "string", "score": 1 },
+    "accessibility": { "reason": "string", "score": 1 },
+    "emotional_fit": { "reason": "string", "score": 1 }
   },
   "strengths": [
     {
       "title": "string",
-      "journey_stage": "string",
+      "journey_stage": "Entry|Orientation|Task start|Core action|Error recovery|Completion|Follow-up / Retention cue",
       "persona_reason": "string",
       "evidence": "string"
     }
@@ -42,7 +42,7 @@
     {
       "priority": "Blocker|High|Medium|Nit",
       "title": "string",
-      "journey_stage": "string",
+      "journey_stage": "Entry|Orientation|Task start|Core action|Error recovery|Completion|Follow-up / Retention cue",
       "problem": "string",
       "persona_voice": "string",
       "evidence": "string",

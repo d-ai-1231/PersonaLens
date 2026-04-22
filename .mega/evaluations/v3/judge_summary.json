@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "evaluationMode": "agent-eval",
+  "overall": {
+    "aggregate_score": 3.7242,
+    "max_score": 5,
+    "total_criteria": 18,
+    "passed": 16,
+    "failed": 2
+  },
+  "evaluator_scores": {
+    "review_quality": {
+      "aggregate": 3.9,
+      "criteria_count": 6
+    },
+    "prompt_pipeline": {
+      "aggregate": 3.6875,
+      "criteria_count": 5
+    },
+    "web_ux_quality": {
+      "aggregate": 3.585,
+      "criteria_count": 7
+    }
+  },
+  "error_distribution": {
+    "review_quality": 1,
+    "prompt_pipeline": 0,
+    "web_ux_quality": 1
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "evaluator_id": "prompt_pipeline",
+  "iteration": "final",
+  "trigger": "final_verification",
+  "validations": [
+    {
+      "criterion": "prompt_quality",
+      "evaluator_score": 3.5,
+      "previous_score": 3.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Google Gemini Structured Output docs — 'Include your response schema as part of the responseSchema field only. Don't duplicate the schema in your input prompt, as the generated output might be lower in quality.'",
+        "Google Developers Blog — Mastering Controlled Generation with Gemini 1.5: Schema Adherence for Developers",
+        "Medium — Structured Output for Beginners: 3 Must-Know Prompting Tips: 'By forcing the model to fill out a reasoning field first, it performs computation in the token space before committing to the final answer'",
+        "tokenoptimize.dev / redis.io — 'Avoid restating the same constraint in multiple places, which dilutes instruction attention'; repeated rules waste tokens with no reliability benefit"
+      ],
+      "note": "Score 3.5/5 is well-supported. The evaluator's specific claims are all verifiable: (1) SYSTEM_PROMPT duplication across systemInstruction and packet body is a confirmed anti-pattern per Google's own docs; (2) reasoning-before-commitment ({reason, score} field ordering) is a validated CoT technique; (3) competitor-rule restatement 4x and EVALUATE-not-EXPAND restatement 3x are confirmed token-wasting consolidation debts per token-efficiency literature. The deduction from 5 is appropriate given the documented consolidation backlog."
+    },
+    {
+      "criterion": "llm_configuration",
+      "evaluator_score": 4.25,
+      "previous_score": 4.25,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Google Gemini Structured Output docs (ai.google.dev) — responseSchema + responseMimeType='application/json' for constrained decoding; 'Constrained decoding is the only method that will guarantee the output adheres to the schema'",
+        "Google Gemini Structured Output docs — 'For reasoning tasks, JSON-Prompt is recommended over JSON-Schema' — supports the design decision that Builder 1 (google_search + reasoning) intentionally omits responseSchema",
+        "genaiunplugged.substack.com / Google Cloud docs — temperature 0.0–0.3 is industry consensus for structured JSON on Gemini 2.5 Pro; the codebase's temperature=0.1 is within the recommended band",
+        "ofox.ai 2026 AI Error Handling guide — model-tier split (flash for simpler tasks, pro for reasoning) is a documented cost-optimization pattern"
+      ],
+      "note": "Score 4.25/5 is well-supported. The three positive claims (temperature=0.1 correct, responseSchema on builders 2+3 correct, builder 1 omitting responseSchema for google_search compatibility correct) all align with authoritative Gemini docs. The remaining deduction is justified: (1) gemini-2.5-pro hardcoded for enrich_persona when flash suffices is a confirmed cost anti-pattern; (2) builder 1's structural inability to carry responseSchema is a documented Gemini limitation (tool + responseSchema incompatibility). Score is accurate."
+    },
+    {
+      "criterion": "retry_reliability",
+      "evaluator_score": 4.8,
+      "previous_score": 4.8,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "fast.io — AI Agent Retry Patterns 2026: '3 retries max, base delay 1-2s, exponential factor 2x, add full or equal jitter' — matches the codebase's 3 attempts + full jitter capped at 30s",
+        "fast.io — 'Respect Retry-After header on 429 responses' — evaluator correctly notes Retry-After numeric-seconds form is parsed; HTTP-date form gap is a confirmed RFC 7231 compliance gap",
+        "apxml.com — 'Distinguish API failure retries (retry same prompt) from validation failure retries (retry with modified prompt that includes the error)' — evaluator's observation about builder rotation coupling is directly supported",
+        "Medium — Error Handling & Retries: Making LLM Calls Reliable (Feb 2026): 4xx except 429 → non-retryable; safety blocks → permanent; 5xx + 429 → retryable with backoff — matches the three-class hierarchy (GeminiPermanentError / GeminiRateLimitError / GeminiTransientError)",
+        "ofox.ai 2026 — per-field validation error injection into retry context is the recommended validation-and-repair pattern"
+      ],
+      "note": "Score 4.8/5 is well-supported. The per-field structural floor (validate_review_output with precise field+index error strings) injected into retry context is confirmed best practice per apxml.com. The two minor remaining gaps — HTTP-date Retry-After form and builder-rotation coupling to attempt index — are real and documented by RFC 7231 and apxml.com respectively. They are correctly rated as polish items that don't materially affect production reliability, justifying the 4.8 rather than 5.0."
+    },
+    {
+      "criterion": "pipeline_structure",
+      "evaluator_score": 3.75,
+      "previous_score": 3.75,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "python.useinstructor.com — Advanced Caching Strategies for Python LLM Applications: lru_cache as L1 in-memory cache is a validated pattern; 'cache hits are 207,636x faster than misses'",
+        "tokenoptimize.dev — Cache-Aside pattern: 'Cache at every safe layer: exact-match for identical inputs; for cross-run persistence use a file-backed store keyed by stable content hash'",
+        "redis.io LLM Token Optimization 2026 — 'Avoid duplicate upstream work (fetching the same webpage twice per request is a pure waste). Cache by a deterministic key.'",
+        "tokenoptimize.dev — persona caching by (service, type, description) hash is a standard pattern for eliminating redundant LLM calls in batch evaluation workloads"
+      ],
+      "note": "Score 3.75/5 is supported. The lru_cache fix (duplicate-crawl elimination) is a validated improvement. The remaining gaps — no persona cache by content hash, 3 divergent builder shapes, no model-tier split — are confirmed sub-optimal patterns per caching and pipeline structure literature. The score accurately reflects partial progress (lru_cache done) with notable remaining topology debt."
+    },
+    {
+      "criterion": "token_efficiency",
+      "evaluator_score": 3.5,
+      "previous_score": 3.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "redis.io LLM Token Optimization 2026 — 'Placing stable constraints in systemInstruction enables prompt caching on supported endpoints'; duplicate system prompt across systemInstruction and user message doubles token cost for those sections",
+        "dasroot.net Token Optimization LLM Costs 2026 — 'Repeating lengthy system prompts across every query compounds the problem'; competitive-rule restatement 4x and EVALUATE-not-EXPAND 3x are confirmed waste patterns",
+        "daydreamsoft.com Context Window Optimization 2026 — 'Relevance filtering: rank context based on relevance, maximize signal and minimize noise'; unfiltered 4.4k token webpage excerpt is a confirmed optimization target",
+        "oneuptime.com Context Compression 2026 — 'Context compression by removing redundant, irrelevant, or low-value content before it reaches the model; structured context management can reduce 140k to 6k tokens' — supports the evaluator's relevance-filter recommendation for webpage excerpts",
+        "Google Gemini docs — 'Include schema in responseSchema only, not in prompt' — the iter-3 schema-removal win (500–800 tokens saved) is confirmed by Google's own guidance"
+      ],
+      "note": "Score 3.5/5 is well-supported. The evaluator's token breakdown is verifiable: SYSTEM_PROMPT duplication (~600 tokens), competitor-rule restatement x4 (~300 tokens), EVALUATE-not-EXPAND x3 (~200 tokens), unfiltered webpage excerpt (~4.4k tokens) are all confirmed waste patterns per 2026 token-efficiency literature. The iter-3 schema removal (~500-800 tokens saved) is confirmed best practice per Google Gemini docs. The scoring rubric retention as a quality-positive tradeoff is a defensible judgment call."
+    }
+  ],
+  "overall_verdict": "confirmed",
+  "actions": []
+}
