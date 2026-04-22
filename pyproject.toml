@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "personalens"
-version = "0.1.0"
+version = "0.3.0"
 description = "AI persona-based UX and quality review agent for any web service"
 readme = "README.md"
 requires-python = ">=3.11"
