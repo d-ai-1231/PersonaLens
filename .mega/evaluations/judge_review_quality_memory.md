@@ -225,3 +225,45 @@ If iter 4 lands (1)+(2)+(3), aggregate projection:
 3. **(Polish)** Extend evidence grounding check to strengths, add blocker-cap post-check, add flat-score heuristic. Each sub-0.05 but combined another ~+0.1 aggregate.
 
 If iter 5 lands (1)+(2), aggregate projection: 4.005 → ~4.13. If it also lands the three polish items, aggregate → ~4.2. This would close the run with headroom above target rather than squeaking over the line.
+
+---
+
+## Iteration 5 — Observations (FINAL)
+
+### What was applied
+- **gemini.py:351-399 — validate_review_output expanded with per-item semantic floor.** New module-level constants _FINDING_REQUIRED_FIELDS (all 9 required finding fields), _STRENGTH_REQUIRED_FIELDS (title, journey_stage, persona_reason, evidence), and _VALID_PRIORITIES = {Blocker, High, Medium, Nit}. Validator now iterates findings and strengths: for each item, checks that every required field is a non-empty string, and for findings specifically checks priority ∈ enum. Error messages are precise ("findings[2] missing non-empty 'evidence'") and feed into the existing Retry Note mechanism at gemini.py:278 as previous_failure on the next attempt. This is the textbook rq-local-003 core fix, landed at last.
+- **webapp.py bilingual + poller updates.** Out of scope for review_quality criteria (LANG_BOOTSTRAP_SCRIPT, APPLY_LANG_SCRIPT, reconnect banner localization, visibilitychange handler, recovery reload delay).
+- **NOT applied this iteration (explicitly documented in diff note):** business_goal anchoring was not addressed. Would have required threading brief.business_goal through run_review + token-overlap check.
+
+### Effects on criteria
+| Criterion | v4 | v5 | Δ | Why |
+|-----------|----|----|---|----|
+| evidence_grounding | 4.25 | 4.25 | 0 | Unchanged. Post-filter stack intact; no strengths evidence-grounding coverage added. |
+| persona_grounding_and_voice | 4.0 | 4.0 | 0 | Unchanged. Validator enforces persona_voice non-empty string (small defense against hollow field) but ceiling unchanged since empty strings were already rare. |
+| finding_severity_discipline | 4.0 | 4.1 | +0.1 | Validator now enforces priority ∈ {Blocker, High, Medium, Nit} in Python, reaching the google_search first-attempt path where responseSchema is disallowed — closes the last request-builder where the enum wasn't decoder-enforced. Per-finding non-empty floor on impact_on_user/impact_on_business/improvement_direction also forces Nielsen-triad reconstructibility that was previously prose-only. |
+| scoring_rubric_calibration | 4.1 | 4.1 | 0 | Unchanged. No score/reason contradiction or flat-score detection. |
+| business_goal_anchoring | 3.5 | 3.5 | 0 | Explicitly deferred by the iteration's own diff note. Stalled at 3.5 throughout the full run. |
+| validation_semantic_coverage | 3.25 | 4.0 | +0.75 | **Largest lift of iter 5.** Per-item semantic floor landed in the validator itself, closing the split-enforcement risk flagged every iteration since iter 2. Validator now dual-enforces (structural + semantic) and feeds precise repair signals into retry via previous_failure. Residuals: journey_stage enum not enforced in Python (only via responseSchema, which the google_search first-attempt path can't use); scores 1-5 integer check not in validator; prioritized_improvements per-item completeness not in validator. |
+| **aggregate** | **4.005** | **4.08** | **+0.075** | |
+
+(Final aggregate trajectory: 2.68 → 3.06 → 3.725 → 3.90 → 4.005 → **4.08**. Target 4.0 reached at iter 4, confirmed and held at iter 5.)
+
+### Final summary of the run
+
+- **All 6 criteria improved or held from baseline**, with the largest lifts on finding_severity_discipline (+2.1), scoring_rubric_calibration (+1.85), validation_semantic_coverage (+2.0), evidence_grounding (+1.25), and persona_grounding_and_voice (+1.0). business_goal_anchoring was never addressed (0 movement across 5 iterations).
+- **Architecture-level wins**: belt-and-braces defense now in place for competitor leaks (prompt + responseSchema + Python post-check), evidence hallucination (3-gram grounding check + JS-unobservable escape hatch + targeted retry), severity inflation (behavioral anchors + blocker-cap prose + enum enforcement), and score central-tendency collapse (per-dimension 1/3/5 anchors + reason-before-number property ordering).
+- **Split-enforcement risk closed** at iter 5: validate_review_output is no longer structural-only; per-item semantic floor is now in the validator itself, so any future caller gets the full floor rather than a stub. This removes what was becoming architectural tech debt.
+- **Lowest-weight critical criterion left unaddressed**: business_goal_anchoring (weight 0.10) — the only criterion that never moved from its baseline 3.5. Intentional per the diff note but represents the single largest remaining lift for any future iteration.
+
+### Residuals (for any post-budget follow-up)
+1. Thread brief.business_goal through run_review + token-overlap check on expected_business_outcome (would lift business_goal_anchoring 3.5 → ~4.0, aggregate +0.05).
+2. Extend validate_review_output: journey_stage enum in Python, scores 1-5 integer check, prioritized_improvements per-item completeness (would lift validation_semantic_coverage 4.0 → ~4.5+).
+3. Scan strengths[].evidence for grounding (currently only findings scanned by _check_evidence_grounding).
+4. Code-level voice probe (first-person markers or voice-anchor substring) on finding.persona_voice.
+5. Blocker-cap post-check, flat-score heuristic, score/reason contradiction heuristic — polish items for severity_discipline and scoring_rubric_calibration.
+
+### Confirmed patterns from the 5-iteration trajectory
+1. **Prompt-level fixes dominate early-iteration ROI.** Iter 1 severity anchors (+2.0), iter 3 scoring rubric (+1.5), iter 2 voice check (+1.0) were all pure prose in agent.py and delivered the largest single-iteration per-criterion lifts.
+2. **Schema/template-level fixes are the cheapest structural wins.** Iter 4's journey_stage enum + {reason, score} reordering crossed the 4.0 target in a single JSON file.
+3. **Post-filter + validator expansion is where belt-and-braces maturity lives.** Iter 2's _check_evidence_grounding + _check_competitor_leak and iter 5's per-item validator expansion were the heaviest code changes but addressed the failure modes that prompt-only guardrails can't catch (rule leakage on weak retry paths, structurally-valid-but-semantically-hollow outputs).
+4. **LLM-judge criteria respond strongly to disqualifying examples.** "NOT a Blocker: slow load time" type constraints (iter 1 severity rubric) moved finding_severity_discipline from 2.0 to 4.0 in one iteration — higher ROI than any other single intervention in the run.

@@ -365,3 +365,87 @@ Priority ordering by weighted leverage:
 3. **Required `*` indicator + aria-busy on submit** — completes form_ux_flow to 4.5.
 4. **Emoji aria-hidden + confidence pill contrast + body font-size rem** — polish triple that lifts visual_language and final accessibility points.
 5. **Lang-switch onclick → addEventListener** — consistency sweep (frontend_code_quality polish).
+
+---
+
+## Iteration 5 Observations (2026-04-20) — FINAL ITERATION
+
+**Diff scope this iter:** src/personalens/webapp.py (bilingual propagation + health poller hardening) + src/personalens/gemini.py (validator tightening — out of scope).
+
+**File grew 1164 → 1223 lines (+59 net).**
+
+**Changes landed (verified via Read + Grep):**
+
+1. **LANG_BOOTSTRAP_SCRIPT (new, L110-L120)** — module-level constant, runs in `<head>` of all 3 templates. Reads `localStorage['qra-lang']`; if 'ko' or 'en', sets `document.documentElement.lang` BEFORE first paint. Wrapped in try/catch so localStorage failure doesn't crash. Wired into render_form (L402), render_result (L725), render_persona_card (L812). This eliminates the FOUC flash-of-English for Korean users.
+
+2. **APPLY_LANG_SCRIPT (new, L125-L139)** — module-level constant, runs after `</body>` on persona + result templates. Reads qra-lang, sets document.documentElement.lang, walks `[data-<lang>]` and `[data-placeholder-<lang>]` attributes and applies them. Wired into render_form (L~540), render_result (L782), render_persona_card (L~1000).
+
+3. **render_persona_card bilingual markup** — badge (L846), h1 (L847), p (L848), all 8 field labels (L857/L861/L865/L869/L873/L877/L881/L887), 3 action buttons (L896-L898), hint (L900) now carry data-en + data-ko. Previously: 0 data-ko. Now: ~11 attributes.
+
+4. **render_result bilingual markup** — Confidence label wrapped in inner `<span data-en='Confidence' data-ko='신뢰도'>` at L733, 'Run another review' button (L735), visually-hidden Summary h2 (L740), 'First impression' (L743), 'Why it matters' (L747), 5 section headings at L755/L760/L764/L771/L776, 'None' empty-state at L765 — all carry data-en + data-ko. Previously: 0 data-ko. Now: ~10 attributes. data-ko total across file: 53 (was 26 after iter 4).
+
+5. **AUTO_RECONNECT_SCRIPT hardening (L19-L85)** — (a) L22 `let failedSince = 0` new state tracker; (b) L24 `RECOVERY_RELOAD_MS = 4000` new constant; (c) L27-L29 `currentLang()` helper; (d) L35-L36 banner set `role='status'` + `aria-live='polite'` (new); (e) L54 `if (document.hidden) return;` guard skips poll when tab hidden; (f) L59 reload only fires if `(Date.now() - failedSince) > RECOVERY_RELOAD_MS` — soft-reload threshold; (g) L67 records `failedSince = Date.now()` on first failure; (h) L70-L72 banner text bilingual via currentLang(); (i) L77-L79 visibilitychange listener triggers immediate re-poll on tab return.
+
+**Grep confirms:**
+- `data-ko` → 53 matches (was 26).
+- `visibilitychange` → 1 match (was 0).
+- `role="status"` → 1 match (was 0).
+- `aria-live` → 2 matches (polling banner L36, error block L239).
+- `aria-pressed` → 3 matches (unchanged from iter 3).
+- `prefers-reduced-motion` → 2 matches (unchanged from iter 2).
+- `LANG_BOOTSTRAP_SCRIPT` → 4 references (definition + 3 uses).
+- `APPLY_LANG_SCRIPT` → 4 references (definition + 3 uses).
+- `location.reload()` → 1 match (only L60 poller, still needed for recovery).
+- `<html lang="en">` → 3 matches at L241/L656/L807 — server-side still hardcoded, but client-side bootstrap patches pre-paint.
+
+**Changes NOT landed (carry-forward as final gaps):**
+- Required-field `*` asterisks → 0 matches.
+- `aria-busy` on submit → 0 matches.
+- Confidence pill alpha-bg contrast (L733 `background:{conf_color}18`) unchanged.
+- Lang-switch buttons (L410-L411) still use inline `onclick=`.
+- Base font-size 14px (L664 render_result, L816 render_persona_card) still px not rem.
+- Emoji section headers (📊 ✅ ❓ 🔍 🚀 at L755/L760/L764/L771/L776) still not wrapped in aria-hidden.
+- Regenerate in-flight strings at L937 ('⏳ Regenerating…') and L~957 ('Regenerate failed:') still hardcoded English — mini-regression within the newly bilingual persona page.
+- Lang toggle buttons only on form page (L409-L412) — Korean users on persona/result pages cannot switch back.
+- No navigator.language fallback for first-time visitors.
+- CSS variables still duplicated on :root across 3 templates.
+- `document.write` still used in 3 places.
+
+### Scores (iteration 5 — FINAL)
+
+| Criterion | v0 | v1 | v2 | v3 | v4 | v5 | Δ(v4→v5) | Weight | Weighted |
+|---|---|---|---|---|---|---|---|---|---|
+| form_ux_flow | 3.5 | 3.5 | 3.5 | 3.5 | 4.0 | 4.0 | 0 | 0.22 | 0.880 |
+| loading_feedback | 3.0 | 3.0 | 3.5 | 3.5 | 3.5 | 4.5 | **+1.0** | 0.18 | 0.810 |
+| visual_language | 4.0 | 4.0 | 4.0 | 4.0 | 4.0 | 4.0 | 0 | 0.15 | 0.600 |
+| responsive_layout | 3.5 | 3.5 | 3.5 | 3.5 | 3.5 | 3.5 | 0 | 0.12 | 0.420 |
+| accessibility | 3.0 | 3.0 | 3.0 | 4.0 | 4.0 | 4.5 | **+0.5** | 0.18 | 0.810 |
+| i18n_bilingual | 2.5 | 2.5 | 2.5 | 2.5 | 2.5 | 4.5 | **+2.0** | 0.08 | 0.360 |
+| frontend_code_quality | 3.5 | 3.5 | 3.5 | 3.5 | 3.5 | 4.0 | **+0.5** | 0.07 | 0.280 |
+| **Aggregate** | 3.315 | 3.315 | 3.405 | 3.525 | 3.695 | **4.160** | **+0.465** | 1.00 | |
+
+Computation: 0.880 + 0.810 + 0.600 + 0.420 + 0.810 + 0.360 + 0.280 = **4.160**.
+
+### Final trajectory summary
+
+- **Baseline (iter 0): 3.315 → Final (iter 5): 4.160. Total delta: +0.845.**
+- **Target: 4.2. Achieved: 4.16. Shortfall: -0.04 (99.0% of target).**
+- The fixer closed 95% of the original target gap in 5 iterations. The 0.04 residual is attributable to the explicitly-deprioritized items (confidence pill contrast, required-field asterisks, aria-busy on submit) — any single one would have crossed 4.2.
+
+### Iteration-by-iteration landed fixes
+
+| Iter | Change | Criterion(+delta) |
+|---|---|---|
+| 1 | no webapp.py changes | — |
+| 2 | prefers-reduced-motion fallback for 4 keyframes | loading_feedback +0.5 |
+| 3 | semantic landmarks + aria-pressed + aria-live on errors + section aria-labelledby | accessibility +1.0 |
+| 4 | Regenerate button re-POSTs /persona with in-flight state mgmt | form_ux_flow +0.5 |
+| 5 | bilingual propagation + health poller hardening | i18n +2.0, loading_feedback +1.0, accessibility +0.5, frontend_code_quality +0.5 |
+
+### Lessons for meta-learning
+
+1. **The fixer front-loaded easy wins (reduced-motion, landmarks) and back-loaded the hardest/highest-leverage change (bilingual propagation).** This was visible in the memory trajectory analysis from iter 2 onward — the target was achievable but required a bundled late iteration. The bundle did land in iter 5 as predicted.
+2. **Bilingual propagation was correctly identified as the single highest-weighted-leverage change** (moves 2 criteria: i18n 2.5→4.5 AND accessibility 4.0→4.5).
+3. **The fixer consistently chose mechanical fixes over design-judgement fixes.** Confidence pill contrast (a judgement-call "what does '3:1' actually require here") was deprioritized across all 5 iterations. Required-field asterisks (a design-choice about visible indicators) was also skipped. These consistent deprioritizations cost the target by 0.04.
+4. **Iteration 1 produced zero webapp.py changes** — a wasted iteration that could have landed the bilingual work and unlocked 4.3+. Future budgets should flag a completely-empty iteration as a process failure.
+5. **Carry-forward items persist.** The same 3-4 items (confidence contrast, required *, aria-busy, emoji aria-hidden) carried forward from iter 0 to iter 5 untouched. If a carry-forward item survives 3+ iterations unfixed, the judge should escalate severity (e.g., medium → high) to signal intent to the fixer.

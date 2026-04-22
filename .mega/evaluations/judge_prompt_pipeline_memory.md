@@ -241,3 +241,69 @@ Remaining backlog is consolidation/topology cleanup. Order by leverage × low co
 5. **Polish** — builder rotation decoupling on semantic failure, Retry-After HTTP-date form. Low ROI but tidy.
 
 Aggregate 4.0 is at target (iter 0's target_score=4.0). Any combination of items 1-4 above in iter 5 could push aggregate to ~4.25-4.5. Realistic upper bound without architectural change is ~4.5 (builder 1's inability to carry responseSchema is an inherent cap on llm_configuration, and the webpage excerpt is a fundamental context-size choice).
+
+---
+
+## Iter 5 Observations & Results (phase: late — FINAL iteration)
+
+### What got fixed in iter 5 (verified against current source)
+1. **Per-finding and per-strength semantic floor in validate_review_output (gemini.py:351-399)** — promoted the validator from a top-level-emptiness check to a structural content check:
+   - `_FINDING_REQUIRED_FIELDS` (9 fields): priority, title, journey_stage, problem, persona_voice, evidence, impact_on_user, impact_on_business, improvement_direction. Each must be a non-empty string, else returns `findings[{idx}] missing non-empty '{field}'`.
+   - `_STRENGTH_REQUIRED_FIELDS` (4 fields): title, journey_stage, persona_reason, evidence. Same non-empty string check.
+   - `_VALID_PRIORITIES` enum check: returns `findings[{idx}].priority must be one of Blocker|High|Medium|Nit` on mismatch.
+   - The error string flows through the existing retry path (gemini.py:276-278): `previous_failure = f"The previous response was structurally empty: {validation_error}. Return a populated review."` — injected as the next attempt's Retry Note. Retries now get actionable per-field, per-index error messages instead of a generic one-liner.
+   - The priority-enum check is the ONLY Python-layer enforcement for builder 1's output (builder 1 = google_search grounded, can't carry responseSchema — pre-iter-5 a wrong priority would pass silently).
+2. **webapp.py i18n scaffolding (NOT prompt_pipeline-relevant)** — LANG_BOOTSTRAP_SCRIPT + APPLY_LANG_SCRIPT + data-en/data-ko attribute swaps across render_form / render_result / render_persona_card. Affects web_ux_quality only.
+
+### What was NOT addressed in iter 5 (entire carryover list from iter 1-4 remains)
+- SYSTEM_PROMPT still duplicated across gemini.py:424-446 (short custom systemInstruction on builder 1 only) + agent.py:169-170 (full packet markdown embedding).
+- Competitor rule still 4× (agent.py:47-49 + agent.py:195 + gemini.py:499-512 plain_text_fallback + gemini.py:562 enrich_persona).
+- EVALUATE-not-EXPAND still 3× (agent.py:24 + :270-271 + :293-294).
+- 3 divergent builder shapes retained (gemini.py:424, :462, :492).
+- No persona cache by (service, type, description) hash.
+- Both stages hardcoded gemini-2.5-pro (service.py:17, 86, 140; gemini.py:41).
+- Webpage excerpt still 4.4k tokens uncompressed (webpage.py:15-16: MAX_PAGES=8 × MAX_EXCERPT_CHARS=2200).
+- Builder rotation still coupled to API-attempt index (no cross-class rotation on semantic failure).
+- Retry-After HTTP-date form still unparsed.
+
+### Iter 5 Scores
+- prompt_quality: 3.5 (unchanged — no prompt-surface work done in iter 5)
+- llm_configuration: 4.25 (unchanged — no API-layer config change in iter 5; validator is Python-layer)
+- retry_reliability: 4.8 (+0.05 — per-finding/per-strength validator provides precise repair signals in Retry Note; priority-enum is the only Python-layer enforcement for builder 1)
+- pipeline_structure: 3.75 (unchanged)
+- token_efficiency: 3.5 (unchanged)
+- aggregate: 4.0125 (+0.01 over iter 4's 4.0)
+
+### Lessons Learned (final)
+- Iter 5 was narrow and correct for retry_reliability. The validator change is exactly the pattern from the "Validation-and-repair loop: feed validation error into retry context" best practice — and making the error strings field-level granular is the right refinement.
+- The prompt-surface consolidation backlog (SYSTEM_PROMPT dedup, competitor rule 4→1, EVALUATE-not-EXPAND 3→1, builder consolidation) was flagged every single iteration and never got done. In retrospect, even one of these in iter 5 could have added +0.25-0.5 to prompt_quality and token_efficiency. Pattern: when a backlog item is "consolidation work" (mechanical removal across multiple files), it tends to get deferred in favor of additive work (validators, new rubrics, new schemas). Future runs should consider timing one consolidation pass early, not leaving them all for late phases.
+- Retry reliability peaked at 4.8 across the run (from 1.5 baseline — a +3.3 swing). This was the single highest ROI domain to invest in.
+- Final aggregate 4.0125 exceeds the iter 0 target of 4.0. Total swing over 5 iterations: 2.0 → 4.0125 = +2.0125.
+
+### Final Run Summary (iter 0 → iter 5)
+| Criterion | Iter 0 | Iter 5 | Delta |
+|---|---|---|---|
+| prompt_quality | 2.5 | 3.5 | +1.0 |
+| llm_configuration | 1.5 | 4.25 | +2.75 |
+| retry_reliability | 1.5 | 4.8 | +3.3 |
+| pipeline_structure | 2.0 | 3.75 | +1.75 |
+| token_efficiency | 2.5 | 3.5 | +1.0 |
+| **aggregate** | **2.0** | **4.0125** | **+2.01** |
+
+Highest-leverage single moves (ranked by iteration ROI):
+1. Iter 1 retry classification + backoff + jitter (+3.0 on retry_reliability)
+2. Iter 1 temperature + top_p + partial responseSchema (+2.0 on llm_configuration)
+3. Iter 3 embedded schema removed from prompt (+0.75 on token_efficiency, +0.25 on llm_configuration)
+4. Iter 4 duplicate-fetch fix via lru_cache (+0.75 on pipeline_structure)
+5. Iter 4 {reason, score} schema reorder (+0.5 on llm_configuration, +0.25 on prompt_quality)
+6. Iter 2 semantic validators (evidence grounding + competitor leak) (+0.25 on retry_reliability)
+7. Iter 5 per-finding/per-strength structural floor (+0.05 on retry_reliability)
+
+### Post-budget Priority Order (if iteration budget were extended)
+1. SYSTEM_PROMPT consolidation across all 3 builders' systemInstruction + removal from packet body (~600 tokens saved, prompt-cache-friendly prefix).
+2. Competitor rule 4→1 and EVALUATE-not-EXPAND 3→1.
+3. Model tier split: gemini-2.5-flash for enrich_persona.
+4. Persona cache by content hash.
+5. Webpage relevance filter (top-K by persona terms).
+6. Builder rotation decoupling on semantic-failure class.
+7. Retry-After HTTP-date form parsing.

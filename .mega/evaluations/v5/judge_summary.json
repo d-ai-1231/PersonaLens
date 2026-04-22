@@ -1,0 +1,30 @@
+{
+  "iteration": 5,
+  "overall": {
+    "aggregate_score": 4.0842,
+    "delta_vs_previous": 0.1842,
+    "total_criteria": 18,
+    "criteria_passed": 18,
+    "criteria_failed": 0
+  },
+  "evaluators": [
+    {
+      "id": "review_quality",
+      "name": "Review Output Quality",
+      "score": 4.08,
+      "target": null
+    },
+    {
+      "id": "prompt_pipeline",
+      "name": "Prompt & LLM Pipeline Engineering",
+      "score": 4.0125,
+      "target": null
+    },
+    {
+      "id": "web_ux_quality",
+      "name": "Web UX & Frontend Quality",
+      "score": 4.16,
+      "target": null
+    }
+  ]
+}
