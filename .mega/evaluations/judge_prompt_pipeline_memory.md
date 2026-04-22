@@ -307,3 +307,66 @@ Highest-leverage single moves (ranked by iteration ROI):
 5. Webpage relevance filter (top-K by persona terms).
 6. Builder rotation decoupling on semantic-failure class.
 7. Retry-After HTTP-date form parsing.
+
+---
+
+## FINAL Evaluation (post-run, all criteria re-scored)
+
+### Verification against current codebase state (2026-04-20)
+
+Confirmed items present in current source:
+- **Retry stack**: 3-class error hierarchy + exponential backoff with full jitter (gemini.py:14-31, 49-51) + Retry-After parsing (gemini.py:54-60) + safety/recitation/blocklist → permanent (gemini.py:263-266) + validation-error injection into retry note (gemini.py:267, 273, 278, 299-302). Iter-5 per-field structural floor live at gemini.py:351-399.
+- **LLM config**: temperature=0.1, top_p=0.95 on GeminiConfig (gemini.py:45-46), applied via _base_generation_config (gemini.py:415-421) to all 3 builders. responseMimeType on all 3, responseSchema on builders 2 and 3 (gemini.py:470, 502); builder 1 correctly omits responseSchema due to google_search incompatibility.
+- **Schema quality**: review-output-schema.json:24-31 has `{reason, score}` ordering; _schema_from_template (agent.py:109-118) propagates it into propertyOrdering+required; journey_stage pipe-enum compiles to strict enum (agent.py:138-142); embedded schema JSON dump removed from packet body (agent.py:302 is prose).
+- **Caching**: @functools.lru_cache(maxsize=64) on fetch_webpage_context (webpage.py:114) — duplicate-crawl bug fixed.
+- **Scoring rubric**: 35-line 1/3/5 behavioral anchors across 8 dimensions live at agent.py:216-250; Voice Check section at agent.py:252-257.
+
+Confirmed consolidation backlog still present:
+- SYSTEM_PROMPT duplicated: short version in gemini.py:437-443 (builder 1 systemInstruction only) + full version in packet markdown at agent.py:169-170 (present on all 3 builders via packet body).
+- Competitor rule 4×: agent.py:46-52 (SYSTEM_PROMPT) + agent.py:195 (Known Competitors header) + gemini.py:510-512 (plain_text_fallback) + gemini.py:561-566 (enrich_persona).
+- EVALUATE-not-EXPAND 3×: agent.py:23-37 + agent.py:270-273 (exec instructions 7-10) + agent.py:292-294 (reflection loop).
+- Model tier: gemini-2.5-pro hardcoded at service.py:17, 86, 140 + gemini.py:41 default.
+- Webpage excerpt: MAX_PAGES=8 × MAX_EXCERPT_CHARS=2200 at webpage.py:15-16 (no relevance filter).
+- 3 divergent builder shapes retained (gemini.py:424, 462, 492).
+- Retry-After HTTP-date form not parsed at gemini.py:54-60.
+- No persona cache in service.py:86.
+
+### Final Scores (post-iter-5, full criteria)
+- prompt_quality: 3.5
+- llm_configuration: 4.25
+- retry_reliability: 4.8
+- pipeline_structure: 3.75
+- token_efficiency: 3.5
+- aggregate: 4.0125 (weighted: 0.25*3.5 + 0.20*4.25 + 0.25*4.8 + 0.15*3.75 + 0.15*3.5)
+
+### Summary of ROI-ranked fixes across the run
+1. Iter 1 — retry classification + backoff + jitter + Retry-After: retry_reliability +3.0 (single largest single-iter swing on any criterion).
+2. Iter 1 — temperature + top_p + partial responseSchema: llm_configuration +2.0.
+3. Iter 3 — embedded schema removed from prompt: token_efficiency +0.75, llm_configuration +0.25.
+4. Iter 4 — lru_cache on fetch_webpage_context: pipeline_structure +0.75, token_efficiency +0.25.
+5. Iter 4 — {reason, score} schema reorder: llm_configuration +0.5, prompt_quality +0.25.
+6. Iter 2 — semantic validators (evidence + competitor leak): retry_reliability +0.25, pipeline_structure +0.5 (from threading webpage_context through).
+7. Iter 5 — per-field structural floor: retry_reliability +0.05.
+8. Iter 3 — behavioral-anchor scoring rubric: prompt_quality +0.25.
+9. Iter 2 — Voice Check section: prompt_quality +0.25.
+
+### Key Patterns Learned
+1. **Retry/reliability infrastructure yields the largest single-iter ROI.** Going from no-backoff-no-classification to industry-standard retry patterns is 3.0+ points and is almost always the single highest-leverage domain to invest in early.
+2. **When prompt text and constrained-decoding schema disagree, the decoder wins.** Iter 3's attempt to claim `{reason, score}` in prose while the schema still had `{score, reason}` was actively defeated by the responseSchema. Iter 4's fix was to change the schema to match the prose. General rule: the schema is the source of truth for structure; the prompt must mirror it.
+3. **Consolidation work gets chronically deferred in favor of additive work.** The evaluator flagged SYSTEM_PROMPT dedup, competitor-rule 4→1, and builder consolidation in iters 1/2/3/4/5 — none got done. Additive work (new validators, new rubrics, new schemas) consistently won priority. For future runs: time one consolidation pass early (e.g., iter 2 or 3), because consolidation backlog compounds into a prompt-quality/token-efficiency ceiling.
+4. **Graceful-degradation validators are worth keeping as a pattern.** Both _check_evidence_grounding and _check_competitor_leak disable themselves when reference data is missing. This prevents the validator from becoming a liability offline and is a reusable pattern.
+5. **Low-LoC / high-ROI fixes flagged repeatedly eventually clear.** Iter 4 closed the top two carryover items in one iteration with ~3 lines of change each, yielding +0.31 aggregate. This suggests evaluators should keep flagging the same priority_fixes verbatim rather than rotating to new ones each iter.
+6. **Realistic upper bound ~4.5 without architectural change.** Builder 1's inherent inability to carry responseSchema (google_search incompatibility) caps llm_configuration; the 4.4k token webpage excerpt is a fundamental context-size choice, not a bug.
+
+### Final aggregate trajectory
+| Iter | Aggregate | Delta |
+|---|---|---|
+| 0 | 2.0 | baseline |
+| 1 | 3.26 | +1.26 |
+| 2 | 3.49 | +0.23 |
+| 3 | 3.69 | +0.20 |
+| 4 | 4.00 | +0.31 |
+| 5 | 4.0125 | +0.01 |
+| final | 4.0125 | (confirmed, no recount change) |
+
+Target cleared at iter 4 and held through iter 5 and final. Total run swing: +2.0125 from baseline.

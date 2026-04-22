@@ -267,3 +267,52 @@ If iter 5 lands (1)+(2), aggregate projection: 4.005 → ~4.13. If it also lands
 2. **Schema/template-level fixes are the cheapest structural wins.** Iter 4's journey_stage enum + {reason, score} reordering crossed the 4.0 target in a single JSON file.
 3. **Post-filter + validator expansion is where belt-and-braces maturity lives.** Iter 2's _check_evidence_grounding + _check_competitor_leak and iter 5's per-item validator expansion were the heaviest code changes but addressed the failure modes that prompt-only guardrails can't catch (rule leakage on weak retry paths, structurally-valid-but-semantically-hollow outputs).
 4. **LLM-judge criteria respond strongly to disqualifying examples.** "NOT a Blocker: slow load time" type constraints (iter 1 severity rubric) moved finding_severity_discipline from 2.0 to 4.0 in one iteration — higher ROI than any other single intervention in the run.
+
+---
+
+## Final Evaluation (post-iter 5 re-score against current codebase state)
+
+Written to `.mega/evaluations/final/judge_review_quality.json`. All 6 criteria active and fully scored (no deferral). Re-grounded against the live codebase (agent.py, gemini.py, service.py, review-output-schema.json, models.py) rather than only the iter-5 diff.
+
+### Final scores confirmed
+
+| Criterion | Weight | Final | vs. Baseline | Load-bearing evidence (file:lines) |
+|-----------|--------|-------|--------------|-------------------------------------|
+| evidence_grounding | 0.25 | 4.25 | +1.25 | agent.py:46-52 + gemini.py:116-149 + 152-203 + 492-521 |
+| persona_grounding_and_voice | 0.20 | 4.0 | +1.0 | gemini.py:551-613 + agent.py:252-257 + agent.py:297 + gemini.py:381-384 |
+| finding_severity_discipline | 0.20 | 4.1 | +2.1 | agent.py:277-282 + agent.py:295-296 + review-output-schema.json:43 + gemini.py:386-387 |
+| scoring_rubric_calibration | 0.15 | 4.1 | +1.85 | agent.py:216-250 + agent.py:117 + review-output-schema.json:24-31 |
+| business_goal_anchoring | 0.10 | 3.5 | 0 | agent.py:23-37 + 260 + 283 — prompt-only, no Python post-check |
+| validation_semantic_coverage | 0.10 | 4.0 | +2.0 | gemini.py:351-399 + review-output-schema.json:36,45 |
+| **aggregate** | 1.0 | **4.08** | **+1.40** | |
+
+### Final observations
+
+1. **business_goal_anchoring is the sole stalled criterion** — it is also the single highest-ROI remaining fix per the priority_fixes output (lift of 3.5 -> ~4.0 for aggregate +0.05). It is the one criterion where the optimization left the guardrail pattern entirely prompt-only; adding `_check_business_goal_overlap` + threading `brief.business_goal` through `run_review` mirrors exactly what was done for `webpage_context` and `allowed_competitors` at iter 2.
+2. **The google_search first-attempt path is the one place where the Python validator is load-bearing.** On inline + fallback paths, responseSchema + propertyOrdering + pipe-enums do the heavy lifting at the decoder level. But `build_request_with_system_instruction` cannot use responseSchema (gemini.py:430-431 comment) because google_search + responseSchema is a banned combination. The iter-5 Python validator fills that gap for priority + finding fields, but still leaves `journey_stage`, `score` (type + range), and `estimated_effort` enforced only by responseSchema — meaning the first attempt could slip an invalid journey_stage through to the caller only to be caught on retry. This is an acceptable architecture (first-attempt failure triggers retry which uses responseSchema-enabled builders) but is worth noting.
+3. **Silent soft-accept on the final attempt** at gemini.py:295-297 is the one defensible-but-invisible failure mode. Adding a sidecar log or telemetry flag is trivial and closes an audit-trail gap.
+4. **Architecture summary of the finished pipeline:**
+   - Prompt layer: SYSTEM_PROMPT (competitor rule + JS-dynamic warning + business-goal framing), packet (Voice Check + Scoring Rubric + severity rubric + Reflection Loop), Execution Instructions with 17 numbered rules.
+   - Schema layer: pipe-enum expansion in `_schema_from_template`, `{reason, score}` ordering with propertyOrdering for CoT, journey_stage as enum, all responseSchema-enabled builders use the full schema.
+   - Python validator layer: per-item field completeness + priority enum, feeds into retry hints.
+   - Python post-filter layer: `_check_evidence_grounding` (3-gram + JS-unobservable escape hatch), `_check_competitor_leak` (grammatical Title Case + user-list + crawl-whitelist + packet safelist), semantic failures become targeted retry notes, final-attempt accept to prevent starvation.
+   - Retry orchestration: 3 builders x 1 attempt each, exponential backoff + jitter, Retry-After parsing, safety-reason classification (SAFETY/RECITATION/BLOCKLIST/PROHIBITED_CONTENT → permanent).
+
+5. **What remains on the table (ordered by ROI for any post-budget work):**
+   - **+0.05 aggregate**: business_goal token-overlap check (rq-local-003 half) — 1 function + 1 kwarg thread.
+   - **+0.06 aggregate**: validator expansion to cover journey_stage + scores + prioritized_improvements items — ~40 lines in gemini.py.
+   - **+0.06 aggregate**: evidence_grounding strengths coverage + soft-accept logging + competitor scan of prioritized_improvements — ~15 lines.
+   - **+0.06 aggregate**: persona voice probe on findings + telemetry for fallback persona — ~25 lines across gemini.py + service.py.
+   - **+0.08 aggregate (combined)**: blocker-cap detector + flat-severity detector + flat-score detector + score/reason polarity check — ~30 lines in gemini.py post-check layer.
+   - Full implementation of all five would project aggregate to ~4.40 (from 4.08), but none are required — the 4.0 target was crossed at iter 4 and held at iter 5.
+
+### Meta-observation on the run's trajectory
+
+The 2.68 -> 4.08 lift confirms the iter-0 prediction that prompt-level fixes dominate early ROI and structural post-filter work dominates late ROI. The 5 iterations split cleanly:
+- Iter 1 (prose in agent.py): severity rubric — +2.0 to one criterion.
+- Iter 2 (prose + ~90 lines in gemini.py): voice check + evidence grounding + competitor leak — +1.0 to two criteria.
+- Iter 3 (prose in agent.py): scoring rubric — +1.5 to one criterion.
+- Iter 4 (JSON schema only): journey_stage enum + {reason, score} reordering — +0.5 to one criterion, +0.1 to another.
+- Iter 5 (~50 lines in gemini.py): validator per-item semantic floor — +0.75 to one criterion, +0.1 to another.
+
+The cheapest single-iteration lift was iter 4 (single-file JSON change, +0.105 aggregate). The largest single-iteration lift was iter 2 (+0.665 aggregate) — the structural post-filter pass. The mean per-iteration lift across the run was +0.28, with aggregate crossing 4.0 at iter 4.

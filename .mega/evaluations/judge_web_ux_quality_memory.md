@@ -449,3 +449,34 @@ Computation: 0.880 + 0.810 + 0.600 + 0.420 + 0.810 + 0.360 + 0.280 = **4.160**.
 3. **The fixer consistently chose mechanical fixes over design-judgement fixes.** Confidence pill contrast (a judgement-call "what does '3:1' actually require here") was deprioritized across all 5 iterations. Required-field asterisks (a design-choice about visible indicators) was also skipped. These consistent deprioritizations cost the target by 0.04.
 4. **Iteration 1 produced zero webapp.py changes** — a wasted iteration that could have landed the bilingual work and unlocked 4.3+. Future budgets should flag a completely-empty iteration as a process failure.
 5. **Carry-forward items persist.** The same 3-4 items (confidence contrast, required *, aria-busy, emoji aria-hidden) carried forward from iter 0 to iter 5 untouched. If a carry-forward item survives 3+ iterations unfixed, the judge should escalate severity (e.g., medium → high) to signal intent to the fixer.
+
+---
+
+## Final Evaluation (post iter-5) — 2026-04-20
+
+**Scope:** all 7 criteria active, `.mega/evaluations/final/judge_web_ux_quality.json` produced.
+
+**Aggregate:** 4.160 (same as iter 5 — no new webapp.py changes between iter 5 and final eval). 99.0% of 4.2 target, shortfall 0.04.
+
+**Verification greps re-run:**
+- webapp.py line count: 1223 (unchanged since iter 5).
+- `data-ko` count: 53 (unchanged).
+- `visibilitychange`: 1 match L77 (unchanged).
+- `role="status"`: 1 match L35 (unchanged).
+- `aria-live`: 2 matches L36 (polling banner), L239 (error block) (unchanged).
+- `aria-pressed`: 3 matches L410/L411/L428 (unchanged since iter 3).
+- `prefers-reduced-motion`: 2 matches (unchanged since iter 2).
+- `aria-disabled`: 2 matches (unchanged since iter 4).
+- `location.reload()`: 1 match L~60 (unchanged).
+- `<html lang="en">`: 3 matches L241/L656/L807 (server-side still static, client bootstrap patches pre-paint).
+- `aria-busy`: 0 matches. Required `*`: 0 matches. `conf_color}18` alpha-bg at L733: unchanged.
+- Inline `onclick=`: 2 matches L410/L411 (lang-switch buttons).
+
+**Final priority_fixes roadmap (post-run):** 16 fixes spanning all 7 criteria, prioritized:
+- 1 high-severity (confidence pill contrast) + 1 high (server-side html lang) = 2 high
+- 7 medium (required indicator, aria-busy on submit, mobile-first refactor, extend lang toggle to persona/result, translate Regenerate strings, remove lang-switch onclick=, and 1 other)
+- 7 low (progressive phase text, soft recovery without reload, rem font sizes, 360px viewport audit, emoji aria-hidden, navigator.language fallback, CSS DRY, document.write replacement, stale comment)
+
+**Handoff note for a hypothetical iter 6:** bundling the 2 high-severity fixes + the 2 most-leveraged medium-severity items (required `*` + extend lang toggle) would push aggregate from 4.16 to ~4.45 in one iteration. The remaining low-severity items are polish worth ~0.1-0.15 combined.
+
+**Final trajectory:** 3.315 → 3.315 → 3.405 → 3.585 → 3.695 → 4.160. Slope accelerated in the final iteration as the highest-leverage bilingual bundle landed — confirms the iter-2 prediction that one-change-per-iter would miss target but a late bundled iter could recover.

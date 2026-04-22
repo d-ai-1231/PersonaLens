@@ -1,0 +1,26 @@
+{
+  "iteration": "final",
+  "overall": {
+    "aggregate_score": 4.0842,
+    "baseline_score": 2.665,
+    "total_improvement": 1.4192
+  },
+  "evaluators": [
+    {
+      "id": "review_quality",
+      "score": 4.08,
+      "critic_verdict": "confirmed"
+    },
+    {
+      "id": "prompt_pipeline",
+      "score": 4.0125,
+      "critic_verdict": "confirmed"
+    },
+    {
+      "id": "web_ux_quality",
+      "score": 4.16,
+      "critic_verdict": "confirmed"
+    }
+  ],
+  "target_crossed": true
+}

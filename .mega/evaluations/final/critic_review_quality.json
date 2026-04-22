@@ -1,0 +1,95 @@
+{
+  "evaluator_id": "review_quality",
+  "iteration": "final",
+  "trigger": "final_verification",
+  "validations": [
+    {
+      "criterion": "evidence_grounding",
+      "evaluator_score": 4.25,
+      "previous_score": 4.25,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "MachineLearningMastery — 5 Practical Techniques to Detect and Mitigate LLM Hallucinations Beyond Prompt Engineering (2026)",
+        "AI Q&A Hub — LLM Hallucination System Architecture (2026): belt-and-braces prompt + post-filter defense in depth",
+        "Collin Wilkins — LLM Structured Outputs: Schema Validation for Real Pipelines (2026): schema enforces shape but not semantic correctness; post-parse checks are required",
+        "Beyond JSON Mode — TianPan.co (2025): constrained decoding guarantees syntactic conformance, not semantic correctness",
+        "MDPI — Multi-Layered Framework for LLM Hallucination Mitigation: post-filter NLI classifier and self-consistency checks confirmed as best practice"
+      ],
+      "note": "The evaluator's reasoning cites a concrete 3-gram sliding-window grounding check (_check_evidence_grounding), a competitor-leak regex filter (_check_competitor_leak), a _PACKET_SAFELIST, an _UNOBSERVABLE_PHRASES escape hatch, and a plain-text fallback competitor rule injection. All of these are well-established defense-in-depth techniques confirmed by 2026 external sources. The residuals cited — strengths[].evidence unchecked, paraphrase trigram bypass, silent final-attempt soft-accept, prioritized_improvements not scanned for competitor leaks — are equally consistent with published hallucination-mitigation literature that distinguishes syntactic validity from semantic grounding. Score of 4.25 (belt-and-braces present with documented residual gaps) is well-supported."
+    },
+    {
+      "criterion": "persona_grounding_and_voice",
+      "evaluator_score": 4.0,
+      "previous_score": 4.0,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "arxiv 2603.18507 — Expert Personas Improve LLM Alignment but Damage Accuracy (PRISM, 2026): persona prompting improves alignment (style, structure-following, voice) but degrades accuracy on fact-dependent tasks; voice carry-through is a style-alignment task and benefits from persona reinforcement",
+        "Score Before You Speak — arxiv 2508.06886: persona consistency in dialogue generation requires explicit consistency scoring, not one-time persona injection",
+        "WaterCrawl — Role Prompting guide: placing voice reminders near the generation zone (not only in the persona card) is an established technique for maintaining alignment",
+        "IxDF / Lyssna / UXPin — Persona Research (cited in judge wisdom): CHI-validated persona grounding requires triangulation across user description, web research, and site crawl; single-source personas are synthetic-persona theater"
+      ],
+      "note": "The evaluator confirms a three-layer triangulation in enrich_persona, a voice-check block immediately before Execution Instructions, a Reflection Loop voice-audit bullet, and a validator enforcing non-empty persona_voice. 2026 PRISM research confirms that persona alignment (voice/style tasks) benefits from explicit reinforcement at generation time — consistent with the evaluator's positive signal for the Voice Check block placement. Residuals (no code-level probe that persona_voice echoes voice anchors; review_summary fields uncovered; fallback persona uses canned anchors) are consistent with the PRISM finding that there is no code-level discriminative check on persona consistency. Score of 4.0 is well-supported."
+    },
+    {
+      "criterion": "finding_severity_discipline",
+      "evaluator_score": 4.1,
+      "previous_score": 4.1,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Nielsen Norman Group — Severity Ratings for Usability Problems: frequency x impact x persistence triad as the canonical severity framework; each severity assignment must be defensible from these three axes",
+        "MeasuringU — Rating Severity of Usability Problems: severity scales require explicit behavioral anchors to prevent rater inflation toward the middle or top",
+        "Medium — Courtney Jordan, Every Expert Has A Severity Scale: disqualifying examples per severity level are the most effective calibration mechanism",
+        "UXPA Journal — Relationship Between Problem Frequency and Severity: confirms frequency as a key independent axis that must be explicitly considered"
+      ],
+      "note": "The evaluator's reasoning cites the Nielsen-triad behavioral anchors in the severity rubric (Blocker/High/Medium/Nit with explicit disqualifying anchors at agent.py:277-282), the blocker-cap in the Reflection Loop, and the Python validator enforcing the priority enum closing the google_search first-attempt path. All of these are directly supported by Nielsen NN/G severity rating standards and MeasuringU research. The residuals — no code-level blocker-cap enforcement, no distribution check — are consistent with the literature's observation that prose-only caps require code-level backstops to be reliable. Score of 4.1 is well-supported."
+    },
+    {
+      "criterion": "scoring_rubric_calibration",
+      "evaluator_score": 4.1,
+      "previous_score": 4.1,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Evidently AI — LLM-as-a-Judge guide (2026): central-tendency bias on broad scales; 1-5 is acceptable only with concrete behavioral anchors per level",
+        "GoDaddy — Calibrating LLM-as-a-Judge Scores: ungrounded 1-5 scoring collapses to 3-for-everything; calibration requires 1/3/5 anchors",
+        "Autorubric — arxiv 2603.00077 (2026): rubric-based evaluation requires observable-behavior anchors, not evaluative adjectives, to reduce ambiguity",
+        "Kinde — LLM-as-a-Judge Done Right: few-shot calibration with explicit high/low anchors significantly improves consistency; descending score order reduces score-ID bias",
+        "LabelYourData — LLM as a Judge 2026 Guide: reason-before-score chain-of-thought is confirmed to improve scoring consistency"
+      ],
+      "note": "The evaluator confirms per-dimension 1/3/5 behavioral anchors for all 8 dimensions, reason-before-score structural ordering via propertyOrdering, temperature=0.1 for variance reduction, and an anti-central-tendency instruction paired with an anti-over-correction safeguard. All of these are confirmed by 2026 LLM-as-a-judge calibration literature. Residuals (no score/reason contradiction heuristic, no flat-score detection, scores not in Python validator) are also well-aligned with the literature's identification of score-reason contradiction and score-bias as open problems that benefit from heuristic post-checks. Score of 4.1 is well-supported."
+    },
+    {
+      "criterion": "business_goal_anchoring",
+      "evaluator_score": 3.5,
+      "previous_score": 3.5,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Nielsen Norman Group — Aligning UX Metrics with Organizational Goals: every UX recommendation must be explicitly tied to a measurable business outcome to avoid 'generic improvement' anti-patterns",
+        "UXPA Magazine — Aligning UX Strategy with Business Goals: UX-business alignment requires explicit mapping from UX change to business metric, not just structural presence of an outcome field",
+        "OpenFieldX — Defining UX Research Goals to Align with Business Objectives: token-level reference to the stated goal is a recognized sufficiency criterion for goal alignment",
+        "Collin Wilkins — LLM Structured Outputs (2026): schema requires a field to exist but cannot enforce semantic relevance; post-parse semantic checks (such as token-overlap) are required for business-goal alignment"
+      ],
+      "note": "The evaluator's 3.5 baseline score for this criterion — unchanged across all 5 iterations — is corroborated by external evidence. The structural schema requirement for expected_business_outcome does not, per published structured-output literature, guarantee semantic relevance to the brief's stated business_goal. The absence of a code-level token-overlap check (the rq-local-003 second half that was never landed) is directly identified in the literature as the gap between syntactic and semantic validation. The evaluator's specific claim that 'prompt-only guardrails dominate this criterion, which is exactly the pattern the optimization was supposed to break' is consistent with the belt-and-braces defense literature (AI Q&A Hub 2026) that requires prompt + schema + post-filter for high-stakes constraints. Score of 3.5 for a prompt-only criterion is well-supported."
+    },
+    {
+      "criterion": "validation_semantic_coverage",
+      "evaluator_score": 4.0,
+      "previous_score": 4.0,
+      "delta": 0.0,
+      "verdict": "evidence_found",
+      "sources": [
+        "Collin Wilkins — LLM Structured Outputs: Schema Validation for Real Pipelines (2026): schema enforces shape; per-item semantic floor checks are required for production reliability",
+        "Instructor / python.useinstructor.com — Semantic Validation with Structured Outputs (2025): per-item validators with automatic retry on failure are a confirmed best-practice pattern",
+        "Beyond JSON Mode — TianPan.co (2025): constrained decoding + responseSchema cover the happy path; fallback paths (plain-text, google_search) bypass schema enforcement and require code-level semantic validators",
+        "DeepFounder — Structured Outputs in 2026: every major provider has schema enforcement gaps on certain request types; belt-and-braces Python validators are standard for production pipelines"
+      ],
+      "note": "The evaluator confirms that iter-5 landed the per-item semantic floor in validate_review_output (gemini.py:368-399), covering all 9 required finding fields, priority enum in Python, and per-strength fields — closing the split-enforcement risk identified from iter-2. The residuals (journey_stage enum not in Python validator, scores not range-checked in Python, prioritized_improvements per-item not covered, soft-accept telemetry gap) are all consistent with the structured-output literature's identification of schema-bypass paths (fallback builders, first-attempt google_search) as the persistent vulnerability class. Score of 4.0 for a per-item floor with documented residual schema-bypass gaps is well-supported."
+    }
+  ],
+  "overall_verdict": "confirmed",
+  "actions": []
+}
